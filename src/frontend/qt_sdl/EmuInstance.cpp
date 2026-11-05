@@ -408,8 +408,15 @@ void EmuInstance::applyGameSettings(const std::string& id)
 
 bool EmuInstance::usesOpenGL()
 {
+    if (netplayHidden()) return false;
     return globalCfg.GetBool("Screen.UseGL") ||
            (globalCfg.GetInt("3D.Renderer") != renderer3D_Software);
+}
+
+int EmuInstance::renderer3D()
+{
+    if (netplayHidden()) return renderer3D_Software;
+    return globalCfg.GetInt("3D.Renderer");
 }
 
 void EmuInstance::initOpenGL(int win)

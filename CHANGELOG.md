@@ -31,6 +31,8 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
     the game runs, players connect inside it as on two real DS consoles: one creates a group in the
     game's wireless mode, the others join, whoever hosted the netplay room. The Host and Join windows
     and the room explain this.
+  - Your own console keeps your video settings (OpenGL renderer, upscaling, filtering) during a
+    netplay game.
   - **Invite from Discord.** While a room is open, the host (or anyone in it) can invite friends from
     a Discord chat with + → Invite to play. Accepting opens the room in melonRA, starting it first if
     needed. Only invited friends can join this way: requests to join from a profile are declined

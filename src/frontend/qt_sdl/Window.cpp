@@ -1196,8 +1196,9 @@ void MainWindow::createScreenPanel()
     panel = nullptr;
     if (oldpanel) delete oldpanel;
 
-    hasOGL = globalCfg.GetBool("Screen.UseGL") ||
-            (globalCfg.GetInt("3D.Renderer") != renderer3D_Software);
+    hasOGL = emuInstance ? emuInstance->usesOpenGL()
+                         : (globalCfg.GetBool("Screen.UseGL") ||
+                            (globalCfg.GetInt("3D.Renderer") != renderer3D_Software));
 
     // with the game list, the screens are the other page of a stack
     QWidget* host = centralStack ? (QWidget*)centralStack : (QWidget*)this;
@@ -3321,6 +3322,7 @@ void MainWindow::onUpdateVideoSettings(bool glchange)
             emuThread->deinitContext(windowID);
             for (auto child: childwins)
             {
+                if (!child->hasOGL) continue;
                 auto thread = child->getEmuInstance()->getEmuThread();
                 thread->deinitContext(child->windowID);
             }
@@ -3350,6 +3352,7 @@ void MainWindow::onUpdateVideoSettings(bool glchange)
             emuThread->initContext(windowID);
             for (auto child: childwins)
             {
+                if (!child->hasOGL) continue;
                 auto thread = child->getEmuInstance()->getEmuThread();
                 thread->initContext(child->windowID);
             }

@@ -140,6 +140,9 @@ public:
     void emuStop(melonDS::Platform::StopReason reason);
 
     bool usesOpenGL();
+    // the 3D renderer this instance uses: the chosen one, except for other
+    // players' netplay consoles, which nobody sees and use the software one
+    int renderer3D();
     void initOpenGL(int win);
     void deinitOpenGL(int win);
     void setVSyncGL(bool vsync);

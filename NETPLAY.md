@@ -51,10 +51,14 @@ session:
   - powering the wireless off or leaving is recorded at an emulated time, never a thread's timing
   - unread packets expire after one emulated second
 - **Settings** (`Config::SetSessionOverrides`): DS mode, built-in BIOS and firmware, direct boot,
-  software renderer, the host's JIT settings, no audio interpolation, silent microphone, the DS's
-  own speed. Each console gets its owner's nickname, birthday, color, language and message, and a
-  MAC address by console number. These override the usual and per-game settings without changing
-  them.
+  the host's JIT settings, no audio interpolation, silent microphone, the DS's own speed. Each
+  console gets its owner's nickname, birthday, color, language and message, and a MAC address by
+  console number. These override the usual and per-game settings without changing them.
+- **Renderer**: each player's own console keeps their video settings (OpenGL, upscaling); the
+  hidden consoles of the other players use the software renderer (`EmuInstance::renderer3D`). The
+  renderer only draws: the emulated hardware's timing and state don't depend on it. A game that
+  captures the 3D picture and copies it into main RAM could differ, which the RAM hashes would
+  report as a desync.
 - **Start state**: every console boots from its owner's save, at the host's date and time, with no
   Wi-Fi settings file, RTC file, SD card, GBA cart or cheats.
 - **During the game**: no savestates, pausing, reset, fast forward, slow motion, frame advance, lid,

@@ -377,8 +377,6 @@ void Runner::onStarted()
     ov["Emu.ConsoleType"] = 0;
     ov["Emu.ExternalBIOSEnable"] = false;
     ov["Emu.DirectBoot"] = true;
-    ov["3D.Renderer"] = 0;
-    ov["Screen.UseGL"] = false;
     ov["JIT.Enable"] = st.JIT;
     ov["JIT.MaxBlockSize"] = (int)st.JITBlockSize;
     ov["JIT.LiteralOptimisations"] = st.JITLiteral;
