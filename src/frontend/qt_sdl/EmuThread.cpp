@@ -56,6 +56,7 @@
 #include "Savestate.h"
 
 #include "EmuInstance.h"
+#include "PlayTime.h"
 #include "RetroAchievements/RAClient.h"
 #include "Netplay/NetplaySession.h"
 #include "LockstepMP.h"
@@ -576,7 +577,37 @@ void EmuThread::run()
             emuInstance->drawScreen();
         }
 
+        countPlayTime(false);
         handleMessages();
+    }
+    countPlayTime(true);
+}
+
+// adds up the time a game runs (not paused, not another player's netplay
+// console) and saves it every minute, and when the game stops or changes
+void EmuThread::countPlayTime(bool finish)
+{
+    const qint64 now = playClock.isValid() ? playClock.elapsed() : (playClock.start(), 0);
+    const qint64 delta = now - playLast;
+    playLast = now;
+
+    QString id;
+    if (!finish && emuStatus == emuStatus_Running && emuActive && !emuInstance->netplayHidden())
+        id = emuInstance->cartGame().id;
+
+    // a long gap (the computer was asleep) doesn't count
+    if (!id.isEmpty() && id == playId && delta > 0 && delta < 5000)
+        playPending += delta;
+
+    if (id != playId || playPending >= 60000)
+    {
+        if (playPending >= 1000)
+        {
+            PlayTime::add(playId, playPending / 1000);
+            playPending %= 1000;
+        }
+        if (id != playId) playPending = 0;
+        playId = id;
     }
 }
 

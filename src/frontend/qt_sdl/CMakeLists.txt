@@ -7,6 +7,7 @@ set(SOURCES_QT_SDL
     main_shaders.h
     Screen.cpp
     Window.cpp
+    PlayTime.cpp
     SettingsBackup.cpp
     WfcServers.cpp
     DiscordPresence.cpp

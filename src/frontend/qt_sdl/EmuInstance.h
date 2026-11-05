@@ -93,6 +93,7 @@ struct CartGameInfo
     QString title;     // empty if there is no game
     QString subtitle;
     QString gameCode;
+    QString id;        // as for Game Settings and play time
 };
 
 class EmuInstance

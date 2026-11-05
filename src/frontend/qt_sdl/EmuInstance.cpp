@@ -2075,7 +2075,8 @@ bool EmuInstance::loadROM(QStringList filepath, bool reset, QString& errorstr)
 
     {
         std::lock_guard<std::mutex> guard(cartGameLock);
-        cartGameInfo = {banner.title, banner.subtitle, banner.gameCode};
+        cartGameInfo = {banner.title, banner.subtitle, banner.gameCode,
+                        QString::fromStdString(Config::GameSettingsId(banner.gameCode.toStdString(), romname))};
     }
 
     // the game's own settings (Game Settings in the game list), before the
@@ -2222,7 +2223,8 @@ bool EmuInstance::netplayBoot(const QStringList& path, QString& error)
 
     {
         std::lock_guard<std::mutex> guard(cartGameLock);
-        cartGameInfo = {banner.title, banner.subtitle, banner.gameCode};
+        cartGameInfo = {banner.title, banner.subtitle, banner.gameCode,
+                        QString::fromStdString(Config::GameSettingsId(banner.gameCode.toStdString(), romname))};
     }
 
     cheatsOn = false;

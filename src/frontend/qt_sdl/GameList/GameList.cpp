@@ -17,6 +17,7 @@
 */
 
 #include "GameList.h"
+#include "PlayTime.h"
 #include "Platform.h"
 #include "Netplay/NetplayRunner.h"
 
@@ -656,6 +657,14 @@ void Model::setGames(std::vector<Game> games)
     hasSettings.assign(list.size(), false);
     for (size_t i = 0; i < list.size(); i++)
         hasSettings[i] = Config::HasGameSettings(settingsId(list[i]).toStdString());
+    playSeconds.assign(list.size(), 0);
+    lastPlayed.assign(list.size(), QDateTime());
+    for (size_t i = 0; i < list.size(); i++)
+    {
+        const PlayTime::Entry e = PlayTime::get(settingsId(list[i]));
+        playSeconds[i] = e.seconds;
+        lastPlayed[i] = e.lastPlayed;
+    }
     endResetModel();
 }
 
@@ -670,6 +679,25 @@ void Model::refreshSettingsMarks()
             emit dataChanged(index((int)i, Col_Title), index((int)i, Col_Title), {HasSettingsRole});
         }
     }
+}
+
+void Model::refreshPlayTime(const QString& id)
+{
+    playSeconds.resize(list.size());
+    lastPlayed.resize(list.size());
+    for (size_t i = 0; i < list.size(); i++)
+    {
+        const QString gid = settingsId(list[i]);
+        if (!id.isEmpty() && gid != id) continue;
+        const PlayTime::Entry e = PlayTime::get(gid);
+        if (playSeconds[i] == e.seconds && lastPlayed[i] == e.lastPlayed) continue;
+        playSeconds[i] = e.seconds;
+        lastPlayed[i] = e.lastPlayed;
+        if (!id.isEmpty())
+            emit dataChanged(index((int)i, Col_PlayTime), index((int)i, Col_PlayTime));
+    }
+    if (id.isEmpty() && !list.empty())
+        emit dataChanged(index(0, Col_PlayTime), index((int)list.size() - 1, Col_PlayTime));
 }
 
 void Model::setProgress(const QHash<QString, Progress>& byPath)
@@ -843,6 +871,13 @@ QVariant Model::data(const QModelIndex& index, int role) const
         return tip;
     }
 
+    if (role == Qt::ToolTipRole && index.column() == Col_PlayTime)
+    {
+        const QDateTime last = (size_t)index.row() < lastPlayed.size() ? lastPlayed[index.row()] : QDateTime();
+        if (!last.isValid()) return "Not played yet";
+        return "Last played " + QLocale().toString(last, QLocale::ShortFormat);
+    }
+
     if (role == Qt::ToolTipRole)
     {
         QString tip = g.title;
@@ -889,6 +924,14 @@ QVariant Model::data(const QModelIndex& index, int role) const
         if (role == Qt::DisplayRole) return g.fileName;
         if (role == SortRole) return g.fileName.toCaseFolded();
         break;
+    case Col_PlayTime:
+    {
+        const qint64 secs = (size_t)index.row() < playSeconds.size() ? playSeconds[index.row()] : 0;
+        if (role == Qt::DisplayRole) return secs ? PlayTime::format(secs) : QString::fromUtf8("—");
+        if (role == SortRole) return secs;
+        if (role == Qt::TextAlignmentRole) return int(Qt::AlignVCenter | (secs ? Qt::AlignLeft : Qt::AlignHCenter));
+        break;
+    }
     case Col_Achievements:
         if (role == SortRole)
         {
@@ -916,6 +959,7 @@ QVariant Model::headerData(int section, Qt::Orientation orientation, int role) c
     case Col_Size:      return "Size";
     case Col_FileName:  return "File Name";
     case Col_Achievements: return "Achievements";
+    case Col_PlayTime:  return "Time Played";
     }
     return {};
 }
@@ -1455,6 +1499,8 @@ Widget::Widget(QWidget* parent) : QWidget(parent)
     view->setItemDelegate(new RowDelegate(view));
     view->setItemDelegateForColumn(Model::Col_Region, new CenteredDelegate(view));
     view->setItemDelegateForColumn(Model::Col_Achievements, new AchievementsDelegate(view));
+    connect(PlayTime::notifier(), &PlayTime::Notifier::changed, model,
+            [this](const QString& id) { model->refreshPlayTime(id); });
     model->setShowStars(showMasteryStars());
     // no hover effect: nothing to redraw while the mouse moves over the list
     view->viewport()->setAttribute(Qt::WA_Hover, false);
@@ -2161,7 +2207,7 @@ void Widget::restoreHeader()
             {
                 header->moveSection(header->visualIndex(c), Model::NumColumns - 1);
                 header->setSectionHidden(c, true);
-                header->resizeSection(c, 170);
+                header->resizeSection(c, c == Model::Col_PlayTime ? 230 : 170);
             }
             saveHeader();
         }
@@ -2184,7 +2230,9 @@ void Widget::defaultColumns()
     header->setSectionHidden(Model::Col_Platform, true);
     header->setSectionHidden(Model::Col_FileName, true);
     header->setSectionHidden(Model::Col_Achievements, true);
+    header->setSectionHidden(Model::Col_PlayTime, true);
     header->resizeSection(Model::Col_Achievements, 170);
+    header->resizeSection(Model::Col_PlayTime, 230);
     header->resizeSection(Model::Col_Developer, 160);
     header->resizeSection(Model::Col_Region, 170);
     header->resizeSection(Model::Col_GameCode, 90);

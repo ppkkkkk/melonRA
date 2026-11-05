@@ -26,6 +26,7 @@
 
 #include <QAbstractTableModel>
 #include <QHash>
+#include <QDateTime>
 #include <QDialog>
 #include <QIcon>
 #include <QImage>
@@ -134,6 +135,7 @@ public:
         Col_Size,
         Col_FileName,
         Col_Achievements,
+        Col_PlayTime,
         NumColumns
     };
     // value used for sorting a column
@@ -177,6 +179,8 @@ public:
     // RetroAchievements progress, by ROM path (empty: none known)
     void setProgress(const QHash<QString, Progress>& byPath);
     void setShowStars(bool show);
+    // time played, read again for one game (empty id: all)
+    void refreshPlayTime(const QString& id = QString());
 
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
@@ -193,6 +197,8 @@ private:
     std::vector<QString> coverKeys;
     std::vector<QString> sizeTexts;
     std::vector<bool> hasSettings;
+    std::vector<qint64> playSeconds;
+    std::vector<QDateTime> lastPlayed;
     QHash<QString, Progress> progress;
     bool stars = true;
     mutable QHash<QString, QPixmap> flags;

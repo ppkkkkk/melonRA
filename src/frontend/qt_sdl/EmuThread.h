@@ -19,6 +19,7 @@
 #ifndef EMUTHREAD_H
 #define EMUTHREAD_H
 
+#include <QElapsedTimer>
 #include <QThread>
 #include <QMutex>
 #include <QSemaphore>
@@ -224,6 +225,12 @@ private:
     void netplayFrameDone(Netplay::Console* np);
     void netplayNote(const char* what);
     double netplayNoteTime = 0;
+
+    void countPlayTime(bool finish);
+    QElapsedTimer playClock;
+    qint64 playLast = 0;
+    qint64 playPending = 0;   // ms not yet saved
+    QString playId;
     bool netplayWaitShown = false;
 };
 

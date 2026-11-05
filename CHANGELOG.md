@@ -12,6 +12,10 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
   Multiplayer, Wi-Fi, Firmware, Interface, Paths, Updates, RetroAchievements) is in one window with a
   list on the left, so you can move between them without closing anything. The Config menu items open
   it on their page. OK saves every page you changed; Cancel undoes them.
+- **Time Played column** in the game list (right-click the column headers to show it): how long
+  you've played each game, such as "27 hours, 28 minutes, 30 seconds", with when you last played it
+  on hover. Time counts while a game runs and not while it's paused. It's kept in
+  `melonRA-playtime.json` next to the settings.
 - **Experimental menu.** New features that are still being tried out go in a menu of their own, next
   to Help.
 - **Netplay (experimental).** Play games with local wireless multiplayer (trading, battles, racing)
