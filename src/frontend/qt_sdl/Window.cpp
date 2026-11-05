@@ -2995,9 +2995,31 @@ void MainWindow::onScreenRotationCycled()
     emit screenLayoutChange();
 }
 
+// the taskbar shows the running game's icon, like the game list
+void MainWindow::updateGameIcon(bool running)
+{
+    QIcon icon;
+    const QImage img = running && emuInstance ? emuInstance->cartGame().icon : QImage();
+    if (!img.isNull())
+    {
+        // whole-number scales keep the pixel art sharp
+        for (int scale : {1, 2, 4, 8})
+            icon.addPixmap(QPixmap::fromImage(img.scaled(img.size() * scale, Qt::IgnoreAspectRatio,
+                                                         Qt::FastTransformation)));
+    }
+    setWindowIcon(icon);
+
+#ifdef Q_OS_MACOS
+    // the Dock shows the application's icon rather than the window's
+    if (windowID == 0 && emuInstance && emuInstance->getInstanceID() == 0)
+        QApplication::setWindowIcon(icon.isNull() ? QIcon(":/melon-icon") : icon);
+#endif
+}
+
 void MainWindow::onEmuStart()
 {
     updateDiscordPresence();
+    updateGameIcon(true);
 
     if (!hasMenu) return;
 
@@ -3027,6 +3049,7 @@ void MainWindow::onEmuStart()
 
 void MainWindow::onEmuStop()
 {
+    updateGameIcon(false);
     // back to the usual settings
     if (emuInstance && windowID == 0)
         emuInstance->applyGameSettings("");

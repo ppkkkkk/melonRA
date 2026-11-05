@@ -23,6 +23,9 @@
 
 #include <mutex>
 
+#include <QImage>
+#include <QString>
+
 #include "Platform.h"
 #include "main.h"
 #include "NDS.h"
@@ -94,6 +97,7 @@ struct CartGameInfo
     QString subtitle;
     QString gameCode;
     QString id;        // as for Game Settings and play time
+    QImage icon;       // 32x32 banner icon; null if none
 };
 
 class EmuInstance

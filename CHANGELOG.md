@@ -16,6 +16,8 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
   you've played each game, such as "27 hours, 28 minutes, 30 seconds", with when you last played it
   on hover. Time counts while a game runs and not while it's paused. It's kept in
   `melonRA-playtime.json` next to the settings.
+- **The game's icon in the taskbar.** While a game runs, the window (and the taskbar or Dock) shows
+  the game's icon from the game list instead of melonRA's; it goes back when the game stops.
 - **Experimental menu.** New features that are still being tried out go in a menu of their own, next
   to Help.
 - **Netplay (experimental).** Play games with local wireless multiplayer (trading, battles, racing)
