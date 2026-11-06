@@ -8,6 +8,7 @@ set(SOURCES_QT_SDL
     Screen.cpp
     Window.cpp
     PlayTime.cpp
+    Rewind.cpp
     SettingsBackup.cpp
     WfcServers.cpp
     DiscordPresence.cpp
@@ -100,6 +101,7 @@ set(SOURCES_QT_SDL
     GameList/Covers.cpp
     GameList/Covers.h
     GameList/GameList.cpp
+    GameList/Shortcut.cpp
     GameList/GameList.h
     GameList/gamelist.qrc
     resources/settings/settings.qrc
@@ -247,7 +249,7 @@ add_subdirectory("${CMAKE_SOURCE_DIR}/src/rcheevos" "${CMAKE_BINARY_DIR}/rcheevo
 target_link_libraries(melonDS PRIVATE rcheevos)
 target_include_directories(melonDS PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/RetroAchievements")
 if (WIN32)
-    target_link_libraries(melonDS PRIVATE winhttp)
+    target_link_libraries(melonDS PRIVATE winhttp ole32 uuid)
 endif()
 target_link_libraries(melonDS PRIVATE PkgConfig::SDL2 PkgConfig::LibArchive PkgConfig::Zstd PkgConfig::Faad)
 target_link_libraries(melonDS PRIVATE ${QT_LINK_LIBS} ${CMAKE_DL_LIBS})

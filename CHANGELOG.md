@@ -16,6 +16,21 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
   you've played each game, such as "27 hours, 28 minutes, 30 seconds", with when you last played it
   on hover. Time counts while a game runs and not while it's paused. It's kept in
   `melonRA-playtime.json` next to the settings.
+- **Favorites.** Right-click a game > Add to Favorites puts a heart in front of its title (and on
+  its tile in the grid); All Games and Favorites tabs appear above the list once there's one.
+- **Last Played column** in the game list, off until ticked in the column menu: Today, Yesterday or
+  the date, sorted by most recent.
+- **Desktop shortcuts.** Right-click a game > Create Desktop Shortcut makes a shortcut with the
+  game's icon that opens melonRA straight into it (a shortcut on Windows, a launcher on Linux, a
+  small app on macOS).
+- **Save state thumbnails.** Saving to a slot keeps a picture of both screens; the Save State and
+  Load State menus show each slot's picture and when it was saved, and both screens on hover.
+- **Resume where you left off** (Settings > Interface, off by default). Stopping a game, switching
+  games or closing melonRA keeps its state; starting it again offers to resume, with a picture of
+  where you were. Not in Hardcore mode or netplay, and the numbered slots are never touched.
+- **Rewind** (Settings > Interface, off by default). Hold the Rewind hotkey to go back through the
+  last 10 to 300 seconds (30 by default) at about five times real speed. Not in Hardcore mode or
+  netplay; loading a state, resetting or changing games starts the history over.
 - **The game's icon in the taskbar.** While a game runs, the window (and the taskbar or Dock) shows
   the game's icon from the game list instead of melonRA's; it goes back when the game stops.
 - **Experimental menu.** New features that are still being tried out go in a menu of their own, next

@@ -101,6 +101,62 @@
     </widget>
    </item>
    <item>
+    <widget class="QGroupBox" name="groupBoxStates">
+     <property name="title">
+      <string>Save states and rewind</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayoutStates">
+      <item>
+       <widget class="QCheckBox" name="cbResumeState">
+        <property name="text">
+         <string>Offer to resume where you left off when starting a game</string>
+        </property>
+        <property name="toolTip">
+         <string>When a game stops, its state is kept, and starting it again offers to continue from there. Not in Hardcore mode or netplay.</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutRewind">
+        <item>
+         <widget class="QCheckBox" name="cbRewind">
+          <property name="text">
+           <string>Rewind with the Rewind hotkey, keeping the last</string>
+          </property>
+          <property name="toolTip">
+           <string>Hold the Rewind hotkey (Input and Hotkeys) to go back in time. Uses some memory and a little speed while playing. Not in Hardcore mode or netplay.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="spinRewindSeconds">
+          <property name="suffix">
+           <string> seconds</string>
+          </property>
+          <property name="minimum">
+           <number>10</number>
+          </property>
+          <property name="maximum">
+           <number>300</number>
+          </property>
+          <property name="singleStep">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacerRewind">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="groupBoxDiscord">
      <property name="title">
       <string>Discord</string>

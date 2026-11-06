@@ -176,6 +176,8 @@ private slots:
     // host a room, with this game already chosen if one is given
     void hostNetplay(const QString& romPath);
     void onDiscordJoin(const QString& secret);
+    void setUpStateMenu(QMenu* menu, QAction** actions);
+    void offerResume();
     void updateGameIcon(bool running);
     void onMPNewInstance();
     void onLANStartHost();

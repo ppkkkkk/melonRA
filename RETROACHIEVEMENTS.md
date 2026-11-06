@@ -27,7 +27,11 @@ local-multiplayer instances play without them.
   - calls `rc_client_do_frame` after every emulated frame, including
     fast-forwarded ones
   - calls `rc_client_idle` while paused
-  - throttles pausing, and blocks slow motion and frame advance in hardcore
+  - throttles pausing, and blocks slow motion, frame advance and rewind in
+    hardcore (rewind snapshots carry the rcheevos progress, restored on each
+    step back in casual)
+  - doesn't keep a resume state in hardcore; the resume prompt isn't offered
+    when hardcore is the chosen mode
   - loads, resets or unloads the game on boot, reset, cart swap and stop
 - `EmuInstance.cpp`
   - hashes the ROM in `loadROM`

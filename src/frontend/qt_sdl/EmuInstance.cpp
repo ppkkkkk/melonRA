@@ -756,6 +756,11 @@ std::string EmuInstance::getSavestateName(int slot)
     return getAssetPath(false, localCfg.GetString("SavestatePath"), ext);
 }
 
+std::string EmuInstance::getResumeStateName()
+{
+    return getAssetPath(false, localCfg.GetString("SavestatePath"), ".mlr");
+}
+
 bool EmuInstance::savestateExists(int slot)
 {
     std::string ssfile = getSavestateName(slot);

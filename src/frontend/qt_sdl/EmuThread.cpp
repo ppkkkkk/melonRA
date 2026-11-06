@@ -28,6 +28,9 @@
 #include <algorithm>
 
 #include <SDL2/SDL.h>
+#include <QFile>
+
+#include <QPainter>
 
 #include "main.h"
 
@@ -57,6 +60,7 @@
 
 #include "EmuInstance.h"
 #include "PlayTime.h"
+#include "Rewind.h"
 #include "RetroAchievements/RAClient.h"
 #include "Netplay/NetplaySession.h"
 #include "LockstepMP.h"
@@ -71,6 +75,8 @@ static RA::Manager* raFor(EmuInstance* inst)
     RA::Manager* m = RA::Manager::get();
     return (m && m->isAttached(inst)) ? m : nullptr;
 }
+
+EmuThread::~EmuThread() = default;
 
 EmuThread::EmuThread(EmuInstance* inst, QObject* parent) : QThread(parent)
 {
@@ -380,12 +386,55 @@ void EmuThread::run()
             emuInstance->syncRTC();
 
 
+            // rewind: not in netplay or hardcore, and only when turned on
+            if (++rewindCheck >= 60 || rewindCheck == 1)
+            {
+                rewindCheck = 1;
+                rewindEnabled = emuInstance->getGlobalConfig().GetBool("Emu.Rewind");
+                const int seconds = std::clamp(emuInstance->getGlobalConfig().GetInt("Emu.RewindSeconds"), 10, 300);
+                if (rewindEnabled && !rewind) rewind = std::make_unique<RewindBuffer>();
+                if (!rewindEnabled && rewind) rewind.reset();
+                if (rewind && seconds != rewindSeconds) rewind->setLength(seconds);
+                rewindSeconds = seconds;
+            }
+            const bool rewindAllowed = rewind && !np && !emuInstance->netplayHidden() && !hardcore;
+            if (emuInstance->hotkeyPressed(HK_Rewind))
+            {
+                if (np) netplayNote("Rewind");
+                else if (hardcore) ra->notifyBlocked("Rewind");
+                else if (!rewind) emuInstance->osdAddMessage(0, "Rewind is off (Settings > Interface)");
+                rewindEmpty = false;
+            }
+            const bool rewinding = rewindAllowed && emuInstance->hotkeyDown(HK_Rewind);
+            emuInstance->audioMutedByRewind = rewinding;
+
             // emulate
             u32 nlines;
             if (emuInstance->nds->GPU.GetRenderer().NeedsShaderCompile())
             {
                 compileShaders();
                 nlines = 1;
+            }
+            else if (rewinding)
+            {
+                // a step back every few frames: about five times real speed
+                nlines = 263;
+                if (++rewindTick >= 6)
+                {
+                    rewindTick = 0;
+                    if (rewind->stepBack(emuInstance->nds, ra))
+                    {
+                        // one frame from there to show the picture, with nothing pressed
+                        emuInstance->nds->SetKeyMask(0xFFF);
+                        emuInstance->nds->ReleaseScreen();
+                        nlines = emuInstance->nds->RunFrame();
+                    }
+                    else if (!rewindEmpty)
+                    {
+                        rewindEmpty = true;
+                        emuInstance->osdAddMessage(0, "Can't rewind any further");
+                    }
+                }
             }
             else
             {
@@ -396,6 +445,7 @@ void EmuThread::run()
                 if (ra) ra->doFrame();
 
                 if (np) netplayFrameDone(np);
+                else if (rewindAllowed) rewind->frameDone(emuInstance->nds, ra);
             }
 
             if (emuInstance->ndsSave)
@@ -583,6 +633,78 @@ void EmuThread::run()
     countPlayTime(true);
 }
 
+void EmuThread::saveResumeState()
+{
+    if (!emuActive || !emuInstance->nds) return;
+    if (!emuInstance->getGlobalConfig().GetBool("Emu.ResumeState")) return;
+    if (emuInstance->netplay || emuInstance->netplayHidden()) return;
+    if (emuInstance->cartGame().id.isEmpty()) return;
+    RA::Manager* ra = raFor(emuInstance);
+    if (ra && ra->hardcoreActive()) return;
+
+    const QString file = QString::fromStdString(emuInstance->getResumeStateName());
+    if (emuInstance->saveState(file.toStdString()))
+    {
+        const QImage shot = grabScreens();
+        if (!shot.isNull()) shot.save(file + ".png", "PNG");
+        else QFile::remove(file + ".png");
+    }
+}
+
+QImage EmuThread::grabScreens()
+{
+    if (!emuInstance->nds) return {};
+    void* top = nullptr;
+    void* bottom = nullptr;
+    QImage out(256, 384, QImage::Format_RGB32);
+    if (emuInstance->nds->GPU.GetFramebuffers(&top, &bottom))
+    {
+        if (!top || !bottom) return {};
+        QPainter p(&out);
+        p.drawImage(0, 0, QImage((const uchar*)top, 256, 192, 256 * 4, QImage::Format_RGB32));
+        p.drawImage(0, 192, QImage((const uchar*)bottom, 256, 192, 256 * 4, QImage::Format_RGB32));
+        return out;
+    }
+
+#ifdef OGLRENDERER_ENABLED
+    // OpenGL: read both layers of the output texture back, possibly upscaled
+    if (!useOpenGL || !top) return {};
+    emuInstance->makeCurrentGL();
+    const GLuint tex = *(GLuint*)top;
+    GLint w = 0, h = 0;
+    glBindTexture(GL_TEXTURE_2D_ARRAY, tex);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_HEIGHT, &h);
+    if (w <= 0 || h <= 0 || w > 8192 || h > 8192) return {};
+
+    GLint prevRead = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prevRead);
+    GLuint fb = 0;
+    glGenFramebuffers(1, &fb);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fb);
+    QPainter p(&out);
+    p.setRenderHint(QPainter::SmoothPixmapTransform);
+    std::vector<uchar> pixels((size_t)w * h * 4);
+    bool ok = true;
+    for (int layer = 0; layer < 2 && ok; layer++)
+    {
+        glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, tex, 0, layer);
+        ok = glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+        if (!ok) break;
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+        glPixelStorei(GL_PACK_ALIGNMENT, 4);
+        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+        QImage img(pixels.data(), w, h, w * 4, QImage::Format_RGBA8888);
+        p.drawImage(QRect(0, layer * 192, 256, 192), img.convertToFormat(QImage::Format_RGB32));
+    }
+    p.end();
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, prevRead);
+    glDeleteFramebuffers(1, &fb);
+    if (ok) return out;
+#endif
+    return {};
+}
+
 // adds up the time a game runs (not paused, not another player's netplay
 // console) and saves it every minute, and when the game stops or changes
 void EmuThread::countPlayTime(bool finish)
@@ -703,6 +825,7 @@ void EmuThread::handleMessages()
         switch (msg.type)
         {
         case msg_Exit:
+            saveResumeState();
             emuStatus = emuStatus_Exit;
             emuPauseStack = emuPauseStackRunning;
 
@@ -751,6 +874,8 @@ void EmuThread::handleMessages()
             break;
 
         case msg_EmuStop:
+            saveResumeState();
+            if (rewind) rewind->clear();
             if (msg.param.value<bool>())
                 emuInstance->nds->Stop();
             emuStatus = emuStatus_Paused;
@@ -767,6 +892,7 @@ void EmuThread::handleMessages()
             break;
 
         case msg_EmuReset:
+            if (rewind) rewind->clear();
             emuInstance->reset();
 
             // resets the achievement runtime, or loads the game if it wasn't
@@ -803,6 +929,8 @@ void EmuThread::handleMessages()
             break;
 
         case msg_BootROM:
+            saveResumeState();
+            if (rewind) rewind->clear();
             msgResult = 0;
             if (!emuInstance->loadROM(msg.param.value<QStringList>(), true, msgError))
                 break;
@@ -839,6 +967,7 @@ void EmuThread::handleMessages()
             break;
 
         case msg_BootFirmware:
+            saveResumeState();
             msgResult = 0;
             if (!emuInstance->bootToMenu(msgError))
                 break;
@@ -890,14 +1019,25 @@ void EmuThread::handleMessages()
             break;
 
         case msg_SaveState:
-            msgResult = emuInstance->saveState(msg.param.value<QString>().toStdString());
+            {
+                const QStringList args = msg.param.toStringList();
+                msgResult = emuInstance->saveState(args.value(0).toStdString());
+                if (msgResult && args.value(1) == "thumbnail")
+                {
+                    const QImage shot = grabScreens();
+                    if (!shot.isNull()) shot.save(args.value(0) + ".png", "PNG");
+                    else QFile::remove(args.value(0) + ".png");
+                }
+            }
             break;
 
         case msg_LoadState:
             msgResult = emuInstance->loadState(msg.param.value<QString>().toStdString());
+            if (msgResult && rewind) rewind->clear();
             break;
 
         case msg_UndoStateLoad:
+            if (rewind) rewind->clear();
             emuInstance->undoStateLoad();
             msgResult = 1;
             break;
@@ -1113,9 +1253,9 @@ int EmuThread::insertGBAAddon(int type, QString& errorstr)
     return msgResult;
 }
 
-int EmuThread::saveState(const QString& filename)
+int EmuThread::saveState(const QString& filename, bool thumbnail)
 {
-    sendMessage({.type = msg_SaveState, .param = filename});
+    sendMessage({.type = msg_SaveState, .param = QStringList{filename, thumbnail ? "thumbnail" : ""}});
     waitMessage();
     return msgResult;
 }

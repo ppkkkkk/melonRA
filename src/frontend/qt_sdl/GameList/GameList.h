@@ -27,6 +27,7 @@
 #include <QAbstractTableModel>
 #include <QHash>
 #include <QDateTime>
+#include <QSet>
 #include <QDialog>
 #include <QIcon>
 #include <QImage>
@@ -47,6 +48,7 @@ class QAbstractItemView;
 class QMenu;
 class QSortFilterProxyModel;
 class QStackedWidget;
+class QTabBar;
 class QThread;
 class QTreeView;
 
@@ -115,6 +117,9 @@ void setShowSearchBar(bool show);
 // a star in front of games mastered on RetroAchievements
 bool showMasteryStars();
 void setShowMasteryStars(bool show);
+// favorite games, by settingsId()
+QSet<QString> favorites();
+void setFavorites(const QSet<QString>& ids);
 bool gridMode();
 void setGridMode(bool grid);
 int tileSize();
@@ -136,6 +141,7 @@ public:
         Col_FileName,
         Col_Achievements,
         Col_PlayTime,
+        Col_LastPlayed,
         NumColumns
     };
     // value used for sorting a column
@@ -152,6 +158,8 @@ public:
     static constexpr int ProgressRole = Qt::UserRole + 5;
     // mastered on RetroAchievements and stars are shown (bool)
     static constexpr int StarRole = Qt::UserRole + 6;
+    // in the player's favorites (bool), for the heart marker
+    static constexpr int FavoriteRole = Qt::UserRole + 7;
 
     // the player's RetroAchievements progress for a game
     struct Progress
@@ -181,6 +189,10 @@ public:
     void setShowStars(bool show);
     // time played, read again for one game (empty id: all)
     void refreshPlayTime(const QString& id = QString());
+    // favorites, by settingsId()
+    void setFavorites(const QSet<QString>& ids);
+    const QSet<QString>& favoriteIds() const { return favorites; }
+    bool isFavorite(int row) const;
 
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
@@ -199,6 +211,7 @@ private:
     std::vector<bool> hasSettings;
     std::vector<qint64> playSeconds;
     std::vector<QDateTime> lastPlayed;
+    QSet<QString> favorites;
     QHash<QString, Progress> progress;
     bool stars = true;
     mutable QHash<QString, QPixmap> flags;
@@ -262,6 +275,8 @@ private:
 
     void setSearchBarVisible(bool visible);
     void addViewOptions(QMenu& menu);
+    void setFavorite(const QString& id, bool on);
+    void updateTabs();
 
     // RetroAchievements progress, for the Achievements column and the stars
     bool wantsAchievements() const;
@@ -271,6 +286,7 @@ private:
 
     QStackedWidget* pages;
     QWidget* searchRow;
+    QTabBar* tabs;
     QWidget* listPage;
     QWidget* emptyPage;
     QLabel* emptyText;

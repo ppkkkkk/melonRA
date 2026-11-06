@@ -41,6 +41,11 @@ InterfaceSettingsDialog::InterfaceSettingsDialog(QWidget* parent) : QDialog(pare
     ui->spinMouseHideSeconds->setValue(cfg.GetInt("Mouse.HideSeconds"));
     ui->cbPauseLostFocus->setChecked(cfg.GetBool("PauseLostFocus"));
     ui->cbMuteFastForward->setChecked(cfg.GetBool("MuteFastForward"));
+    ui->cbResumeState->setChecked(cfg.GetBool("Emu.ResumeState"));
+    ui->cbRewind->setChecked(cfg.GetBool("Emu.Rewind"));
+    ui->spinRewindSeconds->setValue(cfg.GetInt("Emu.RewindSeconds"));
+    ui->spinRewindSeconds->setEnabled(ui->cbRewind->isChecked());
+    connect(ui->cbRewind, &QCheckBox::toggled, ui->spinRewindSeconds, &QWidget::setEnabled);
     ui->cbDiscordEnabled->setChecked(cfg.GetBool("Discord.Enabled"));
     ui->cbDiscordAchievements->setChecked(cfg.GetBool("Discord.ShowAchievements"));
     ui->cbDiscordCount->setChecked(cfg.GetBool("Discord.ShowAchievementCount"));
@@ -135,6 +140,9 @@ void InterfaceSettingsDialog::done(int r)
         cfg.SetInt("Mouse.HideSeconds", ui->spinMouseHideSeconds->value());
         cfg.SetBool("PauseLostFocus", ui->cbPauseLostFocus->isChecked());
         cfg.SetBool("MuteFastForward", ui->cbMuteFastForward->isChecked());
+        cfg.SetBool("Emu.ResumeState", ui->cbResumeState->isChecked());
+        cfg.SetBool("Emu.Rewind", ui->cbRewind->isChecked());
+        cfg.SetInt("Emu.RewindSeconds", ui->spinRewindSeconds->value());
         cfg.SetBool("Discord.Enabled", ui->cbDiscordEnabled->isChecked());
         cfg.SetBool("Discord.ShowAchievements", ui->cbDiscordAchievements->isChecked());
         cfg.SetBool("Discord.ShowAchievementCount", ui->cbDiscordCount->isChecked());

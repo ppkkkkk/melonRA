@@ -65,6 +65,7 @@ enum
     HK_CycleScreenLayout,
     HK_CycleScreenSizing,
     HK_RotateScreens,
+    HK_Rewind,
     HK_MAX
 };
 
@@ -233,6 +234,8 @@ private:
     std::string getEffectiveFirmwareSavePath();
     void initFirmwareSaveManager() noexcept;
     std::string getSavestateName(int slot);
+    // the state kept when a game stops, to resume from
+    std::string getResumeStateName();
     bool savestateExists(int slot);
     bool loadState(const std::string& filename);
     bool saveState(const std::string& filename);
@@ -373,6 +376,7 @@ private:
     float audioSampleFrac;
     bool audioMutedToggle;
     bool audioMutedByFastForward;
+    bool audioMutedByRewind = false;
     bool audioMutedByWindowFocus;
     SDL_cond* audioSyncCond;
     SDL_mutex* audioSyncLock;

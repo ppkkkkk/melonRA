@@ -44,6 +44,8 @@
 #include <QCommandLineParser>
 #include <QDesktopServices>
 #include <QProxyStyle>
+#include <QLocale>
+#include <QUrl>
 #include <QStackedWidget>
 #include <QStyleFactory>
 #include <QStyleOption>
@@ -413,6 +415,7 @@ MainWindow::MainWindow(int id, EmuInstance* inst, QWidget* parent) :
                 actSaveState[0]->setShortcut(QKeySequence(Qt::ShiftModifier | Qt::Key_F9));
                 actSaveState[0]->setData(QVariant(0));
                 connect(actSaveState[0], &QAction::triggered, this, &MainWindow::onSaveState);
+                setUpStateMenu(submenu, actSaveState);
             }
             {
                 QMenu * submenu = menu->addMenu("Load State");
@@ -429,6 +432,7 @@ MainWindow::MainWindow(int id, EmuInstance* inst, QWidget* parent) :
                 actLoadState[0]->setShortcut(QKeySequence(Qt::Key_F9));
                 actLoadState[0]->setData(QVariant(0));
                 connect(actLoadState[0], &QAction::triggered, this, &MainWindow::onLoadState);
+                setUpStateMenu(submenu, actLoadState);
             }
 
             actUndoStateLoad = menu->addAction("Undo State Load");
@@ -1375,6 +1379,7 @@ void MainWindow::dropEvent(QDropEvent* event)
             QMessageBox::critical(this, "melonRA", errorstr);
             return;
         }
+        offerResume();
 
         const QString barredFilename = file.join('|');
         recentFileList.removeAll(barredFilename);
@@ -1518,6 +1523,7 @@ bool MainWindow::preloadROMs(QStringList file, QStringList gbafile, bool boot)
                 QMessageBox::critical(this, "melonRA", errorstr);
                 return false;
             }
+            offerResume();
         }
         else
         {
@@ -1747,6 +1753,7 @@ void MainWindow::onOpenFile()
         QMessageBox::critical(this, "melonRA", errorstr);
         return;
     }
+    offerResume();
 
     QString filename = file.join('|');
     recentFileList.removeAll(filename);
@@ -1865,6 +1872,7 @@ bool MainWindow::bootROMPath(const QString& filename)
         QMessageBox::critical(this, "melonRA", errorstr);
         return false;
     }
+    offerResume();
 
     recentFileList.removeAll(filename);
     recentFileList.prepend(filename);
@@ -1986,7 +1994,7 @@ void MainWindow::onSaveState()
             return;
     }
 
-    if (emuThread->saveState(filename))
+    if (emuThread->saveState(filename, slot > 0))
     {
         if (slot > 0) emuInstance->osdAddMessage(0, "State saved to slot %d", slot);
         else          emuInstance->osdAddMessage(0, "State saved to file");
@@ -1997,6 +2005,69 @@ void MainWindow::onSaveState()
     {
         emuInstance->osdAddMessage(0xFFA0A0, "State save failed");
     }
+}
+
+// the save state menus: each slot with a picture of the moment it was saved
+// and when, so it's clear what's in it before loading or overwriting
+namespace
+{
+class StateMenuStyle : public QProxyStyle
+{
+public:
+    int pixelMetric(PixelMetric metric, const QStyleOption* option, const QWidget* widget) const override
+    {
+        if (metric == PM_SmallIconSize) return 64;
+        return QProxyStyle::pixelMetric(metric, option, widget);
+    }
+};
+}
+
+void MainWindow::setUpStateMenu(QMenu* menu, QAction** actions)
+{
+    auto* style = new StateMenuStyle();
+    style->setParent(menu);
+    menu->setStyle(style);
+    menu->setToolTipsVisible(true);
+    connect(menu, &QMenu::aboutToShow, this, [this, actions]()
+    {
+        for (int i = 1; i < 9; i++)
+        {
+            const QString file = QString::fromStdString(emuInstance->getSavestateName(i));
+            const QFileInfo info(file);
+            QAction* act = actions[i];
+            if (!emuThread->emuIsActive() || !info.exists())
+            {
+                act->setText(QString("Slot %1 (empty)").arg(i));
+                act->setIcon(QIcon());
+                act->setToolTip(QString());
+                continue;
+            }
+            const QString when = QLocale().toString(info.lastModified(), QLocale::ShortFormat);
+            act->setText(QString("Slot %1 \u2014 %2").arg(i).arg(when));
+
+            // the top screen as the icon, both screens when hovered
+            QImage thumb(file + ".png");
+            if (!thumb.isNull())
+            {
+                QPixmap top = QPixmap::fromImage(thumb.copy(0, 0, thumb.width(), thumb.height() / 2));
+                QPixmap icon(64, 64);
+                icon.fill(Qt::transparent);
+                {
+                    QPainter p(&icon);
+                    p.setRenderHint(QPainter::SmoothPixmapTransform);
+                    p.drawPixmap(QRect(0, 8, 64, 48), top);
+                }
+                act->setIcon(QIcon(icon));
+                act->setToolTip(QString("<img src=\"%1\" width=\"256\" height=\"384\">")
+                                    .arg(QUrl::fromLocalFile(file + ".png").toString().toHtmlEscaped()));
+            }
+            else
+            {
+                act->setIcon(QIcon());
+                act->setToolTip(QString());
+            }
+        }
+    });
 }
 
 void MainWindow::onLoadState()
@@ -3187,6 +3258,44 @@ void MainWindow::onNetplayJoin()
     actNetplayJoin->setEnabled(false);
     actNetplayRoom->setEnabled(true);
     actNetplayLeave->setEnabled(true);
+}
+
+// a game just started: offer to continue from where it was last stopped
+void MainWindow::offerResume()
+{
+    if (!globalCfg.GetBool("Emu.ResumeState")) return;
+    if (emuInstance->netplay || Netplay::Runner::current()) return;
+    if (RA::Manager* ra = RA::Manager::get(); ra && ra->isEnabled() && ra->isHardcorePreferred()) return;
+
+    const QString file = QString::fromStdString(emuInstance->getResumeStateName());
+    const QFileInfo info(file);
+    if (!info.exists()) return;
+
+    emuThread->emuPause();
+    QMessageBox box(this);
+    box.setWindowTitle("Resume");
+    box.setTextFormat(Qt::PlainText);
+    const QString title = emuInstance->cartGame().title.section('\n', 0, 0);
+    box.setText(title.isEmpty() ? QString("Continue where you left off?")
+                                : QString("Continue %1 where you left off?").arg(title));
+    box.setInformativeText(QString("Last played %1.")
+                               .arg(QLocale().toString(info.lastModified(), QLocale::ShortFormat)));
+    QImage shot(file + ".png");
+    if (!shot.isNull())
+        box.setIconPixmap(QPixmap::fromImage(shot.scaled(160, 240, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+    QPushButton* resume = box.addButton("Resume", QMessageBox::AcceptRole);
+    box.addButton("Start Over", QMessageBox::RejectRole);
+    box.setDefaultButton(resume);
+    box.exec();
+
+    if (box.clickedButton() == resume)
+    {
+        if (emuThread->loadState(file))
+            emuInstance->osdAddMessage(0, "Resumed where you left off");
+        else
+            emuInstance->osdAddMessage(0xFFA0A0, "Couldn't resume; starting over");
+    }
+    emuThread->emuUnpause();
 }
 
 // a friend's room, from an accepted Discord invite

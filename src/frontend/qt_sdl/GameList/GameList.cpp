@@ -18,6 +18,7 @@
 
 #include "GameList.h"
 #include "PlayTime.h"
+#include "Shortcut.h"
 #include "Platform.h"
 #include "Netplay/NetplayRunner.h"
 
@@ -69,6 +70,7 @@
 #include <QShowEvent>
 #include <QSortFilterProxyModel>
 #include <QStackedWidget>
+#include <QTabBar>
 #include <QStyledItemDelegate>
 #include <QThread>
 #include <QTimer>
@@ -599,6 +601,20 @@ void setShowSearchBar(bool show)
     globalConfig().SetBool("GameList.SearchBar", show);
 }
 
+QSet<QString> favorites()
+{
+    const QStringList ids = globalConfig().GetQString("GameList.Favorites").split('\n', Qt::SkipEmptyParts);
+    return QSet<QString>(ids.begin(), ids.end());
+}
+
+void setFavorites(const QSet<QString>& ids)
+{
+    QStringList list(ids.begin(), ids.end());
+    list.sort();
+    globalConfig().SetQString("GameList.Favorites", list.join('\n'));
+    Config::Save();
+}
+
 bool showMasteryStars()
 {
     return globalConfig().GetBool("GameList.MasteryStars");
@@ -681,6 +697,18 @@ void Model::refreshSettingsMarks()
     }
 }
 
+void Model::setFavorites(const QSet<QString>& ids)
+{
+    favorites = ids;
+    if (!list.empty())
+        emit dataChanged(index(0, Col_Title), index((int)list.size() - 1, Col_Title), {FavoriteRole});
+}
+
+bool Model::isFavorite(int row) const
+{
+    return row >= 0 && (size_t)row < list.size() && favorites.contains(settingsId(list[row]));
+}
+
 void Model::refreshPlayTime(const QString& id)
 {
     playSeconds.resize(list.size());
@@ -694,10 +722,10 @@ void Model::refreshPlayTime(const QString& id)
         playSeconds[i] = e.seconds;
         lastPlayed[i] = e.lastPlayed;
         if (!id.isEmpty())
-            emit dataChanged(index((int)i, Col_PlayTime), index((int)i, Col_PlayTime));
+            emit dataChanged(index((int)i, Col_PlayTime), index((int)i, Col_LastPlayed));
     }
     if (id.isEmpty() && !list.empty())
-        emit dataChanged(index(0, Col_PlayTime), index((int)list.size() - 1, Col_PlayTime));
+        emit dataChanged(index(0, Col_PlayTime), index((int)list.size() - 1, Col_LastPlayed));
 }
 
 void Model::setProgress(const QHash<QString, Progress>& byPath)
@@ -850,6 +878,8 @@ QVariant Model::data(const QModelIndex& index, int role) const
         return coverKeys[index.row()];
     if (role == HasSettingsRole)
         return (size_t)index.row() < hasSettings.size() && hasSettings[index.row()];
+    if (role == FavoriteRole)
+        return favorites.contains(settingsId(g));
     if (role == StarRole)
         return stars && progress.value(g.path).mastered();
     if (role == ProgressRole)
@@ -869,6 +899,13 @@ QVariant Model::data(const QModelIndex& index, int role) const
             if (pr.completed()) tip += "\nCompleted (unlock them all in Hardcore mode to master it)";
         }
         return tip;
+    }
+
+    if (role == Qt::ToolTipRole && index.column() == Col_LastPlayed)
+    {
+        const QDateTime last = (size_t)index.row() < lastPlayed.size() ? lastPlayed[index.row()] : QDateTime();
+        if (!last.isValid()) return QVariant();
+        return QLocale().toString(last, QLocale::LongFormat);
     }
 
     if (role == Qt::ToolTipRole && index.column() == Col_PlayTime)
@@ -924,6 +961,21 @@ QVariant Model::data(const QModelIndex& index, int role) const
         if (role == Qt::DisplayRole) return g.fileName;
         if (role == SortRole) return g.fileName.toCaseFolded();
         break;
+    case Col_LastPlayed:
+    {
+        const QDateTime last = (size_t)index.row() < lastPlayed.size() ? lastPlayed[index.row()] : QDateTime();
+        if (role == SortRole) return last.isValid() ? last.toSecsSinceEpoch() : qint64(0);
+        if (role == Qt::TextAlignmentRole) return int(Qt::AlignCenter);
+        if (role == Qt::DisplayRole)
+        {
+            if (!last.isValid()) return QString::fromUtf8("—");
+            const qint64 days = last.date().daysTo(QDate::currentDate());
+            if (days == 0) return QString("Today");
+            if (days == 1) return QString("Yesterday");
+            return QLocale().toString(last.date(), QLocale::ShortFormat);
+        }
+        break;
+    }
     case Col_PlayTime:
     {
         const qint64 secs = (size_t)index.row() < playSeconds.size() ? playSeconds[index.row()] : 0;
@@ -960,6 +1012,7 @@ QVariant Model::headerData(int section, Qt::Orientation orientation, int role) c
     case Col_FileName:  return "File Name";
     case Col_Achievements: return "Achievements";
     case Col_PlayTime:  return "Time Played";
+    case Col_LastPlayed: return "Last Played";
     }
     return {};
 }
@@ -986,8 +1039,9 @@ public:
 protected:
     bool filterAcceptsRow(int row, const QModelIndex& parent) const override
     {
-        if (terms.isEmpty()) return true;
         auto* m = static_cast<Model*>(sourceModel());
+        if (favoritesOnly && !m->isFavorite(row)) return false;
+        if (terms.isEmpty()) return true;
         const Game& g = m->games()[row];
         QString hay = g.title + " " + g.subtitle + " " + g.developer + " " + g.gameCode + " " +
                       g.fileName + " " + g.region;
@@ -997,11 +1051,42 @@ protected:
         return true;
     }
 
+public:
+    void setFavoritesOnly(bool on)
+    {
+        if (on == favoritesOnly) return;
+        favoritesOnly = on;
+        invalidateFilter();
+    }
+    bool showsFavoritesOnly() const { return favoritesOnly; }
+
 private:
     QStringList terms;
+    bool favoritesOnly = false;
 };
 
 }
+
+// a heart, marking favorite games
+static void drawHeart(QPainter* p, const QRectF& r, const QColor& fill)
+{
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing);
+    const qreal w = r.width(), h = r.height();
+    const qreal x = r.left(), y = r.top();
+    QPainterPath path;
+    path.moveTo(x + w * 0.5, y + h * 0.92);
+    path.cubicTo(x + w * 0.10, y + h * 0.62, x - w * 0.02, y + h * 0.30, x + w * 0.22, y + h * 0.14);
+    path.cubicTo(x + w * 0.36, y + h * 0.05, x + w * 0.48, y + h * 0.14, x + w * 0.5, y + h * 0.26);
+    path.cubicTo(x + w * 0.52, y + h * 0.14, x + w * 0.64, y + h * 0.05, x + w * 0.78, y + h * 0.14);
+    path.cubicTo(x + w * 1.02, y + h * 0.30, x + w * 0.90, y + h * 0.62, x + w * 0.5, y + h * 0.92);
+    p->setPen(Qt::NoPen);
+    p->setBrush(fill);
+    p->drawPath(path);
+    p->restore();
+}
+
+static const QColor kHeart(232, 72, 104);
 
 // a small gear, marking games with their own settings
 static void drawGear(QPainter* p, const QRectF& r, const QColor& color)
@@ -1081,9 +1166,10 @@ public:
         QStyle* style = w ? w->style() : QApplication::style();
 
         const bool isTitle = index.column() == Model::Col_Title;
+        const bool heart = isTitle && index.data(Model::FavoriteRole).toBool();
         const bool star = isTitle && index.data(Model::StarRole).toBool();
         const bool gear = isTitle && index.data(Model::HasSettingsRole).toBool();
-        if (!star && !gear)
+        if (!heart && !star && !gear)
         {
             style->drawControl(QStyle::CE_ItemViewItem, &opt, p, w);
             return;
@@ -1099,6 +1185,11 @@ public:
         const int g = std::max(10, opt.fontMetrics.height() - 4);
         const qreal top = opt.rect.center().y() - g / 2.0;
         int x = text.left() + 1;
+        if (heart)
+        {
+            drawHeart(p, QRectF(x - 1, top - 1, g + 2, g + 2), kHeart);
+            x += g + 5;
+        }
         if (star)
         {
             drawStar(p, QRectF(x - 1, top - 1, g + 2, g + 2), kGold);
@@ -1127,6 +1218,8 @@ public:
         if (event->type() == QEvent::ToolTip && index.column() == Model::Col_Title)
         {
             QStringList lines;
+            if (index.data(Model::FavoriteRole).toBool())
+                lines << "In your favorites";
             if (index.data(Model::StarRole).toBool())
                 lines << "Mastered on RetroAchievements";
             if (index.data(Model::HasSettingsRole).toBool())
@@ -1367,15 +1460,28 @@ public:
             drawGear(p, badge.adjusted(2, 2, -2, -2), QColor(255, 255, 255, 230));
         }
 
-        // mastered: a star in the other corner
-        if (index.data(Model::StarRole).toBool() && !frame.isNull())
+        // favorite and mastered: a heart, then a star, in the other corner
+        if (!frame.isNull())
         {
             const int g = std::clamp(frame.width() / 7, 12, 22);
-            const QRectF badge(frame.left() + 1, frame.top() + 3, g + 2, g + 2);
-            p->setPen(Qt::NoPen);
-            p->setBrush(QColor(0, 0, 0, 150));
-            p->drawEllipse(badge);
-            drawStar(p, badge.adjusted(2, 2, -2, -2), kGold);
+            qreal x = frame.left() + 1;
+            if (index.data(Model::FavoriteRole).toBool())
+            {
+                const QRectF badge(x, frame.top() + 3, g + 2, g + 2);
+                p->setPen(Qt::NoPen);
+                p->setBrush(QColor(0, 0, 0, 150));
+                p->drawEllipse(badge);
+                drawHeart(p, badge.adjusted(3, 3, -3, -2), kHeart);
+                x += g + 4;
+            }
+            if (index.data(Model::StarRole).toBool())
+            {
+                const QRectF badge(x, frame.top() + 3, g + 2, g + 2);
+                p->setPen(Qt::NoPen);
+                p->setBrush(QColor(0, 0, 0, 150));
+                p->drawEllipse(badge);
+                drawStar(p, badge.adjusted(2, 2, -2, -2), kGold);
+            }
         }
 
         // selected: an outline in the theme's selection color around the cover
@@ -1463,6 +1569,15 @@ Widget::Widget(QWidget* parent) : QWidget(parent)
     listPage = new QWidget();
     auto* listLayout = new QVBoxLayout(listPage);
     listLayout->setContentsMargins(6, 6, 6, 6);
+
+    // All Games / Favorites, shown once there's a favorite
+    tabs = new QTabBar();
+    tabs->addTab("All Games");
+    tabs->addTab("Favorites");
+    tabs->setDrawBase(false);
+    tabs->setExpanding(false);
+    listLayout->addWidget(tabs);
+
     searchRow = new QWidget();
     auto* top = new QHBoxLayout(searchRow);
     top->setContentsMargins(0, 0, 0, 0);
@@ -1502,6 +1617,7 @@ Widget::Widget(QWidget* parent) : QWidget(parent)
     connect(PlayTime::notifier(), &PlayTime::Notifier::changed, model,
             [this](const QString& id) { model->refreshPlayTime(id); });
     model->setShowStars(showMasteryStars());
+    model->setFavorites(favorites());
     // no hover effect: nothing to redraw while the mouse moves over the list
     view->viewport()->setAttribute(Qt::WA_Hover, false);
     model->setShowRegionNames(showRegionNames());
@@ -1630,6 +1746,11 @@ Widget::Widget(QWidget* parent) : QWidget(parent)
     connect(search, &QLineEdit::textChanged, this, [this](const QString& text)
     {
         static_cast<ProxyModel*>(proxy)->setSearch(text);
+        updatePage();
+    });
+    connect(tabs, &QTabBar::currentChanged, this, [this](int tab)
+    {
+        static_cast<ProxyModel*>(proxy)->setFavoritesOnly(tab == 1);
         updatePage();
     });
     connect(view, &QTreeView::activated, this, &Widget::bootIndex);
@@ -1874,11 +1995,14 @@ void Widget::refreshSettingsMarks()
 
 void Widget::updatePage()
 {
+    updateTabs();
     const int total = model->rowCount();
     const int shown = proxy->rowCount();
 
     if (scanning && total == 0)
         status->setText("Scanning...");
+    else if (static_cast<ProxyModel*>(proxy)->showsFavoritesOnly())
+        status->setText(shown == 1 ? QString("1 favorite") : QString("%1 favorites").arg(shown));
     else if (shown != total)
         status->setText(QString("%1 of %2 games").arg(shown).arg(total));
     else
@@ -2059,6 +2183,9 @@ void Widget::showContextMenu(QAbstractItemView* from, const QPoint& pos)
             const QIcon icon = g.icon.isNull() ? QIcon() : QIcon(QPixmap::fromImage(g.icon));
             const QString title = g.title;
             const QString romPath = g.path;
+            const bool fav = model->isFavorite(row);
+            connect(menu.addAction(fav ? "Remove from Favorites" : "Add to Favorites"), &QAction::triggered, this,
+                    [this, id, fav]() { setFavorite(id, !fav); });
             connect(menu.addAction("Game Settings..."), &QAction::triggered, this, [this, id, title, icon, romPath]()
             {
                 emit gameSettingsRequested(id, title, icon, romPath);
@@ -2076,6 +2203,20 @@ void Widget::showContextMenu(QAbstractItemView* from, const QPoint& pos)
                 connect(ach, &QAction::triggered, this, [this, romPath]() { emit achievementsRequested(romPath); });
             }
 
+            // a shortcut on the desktop that opens melonRA with this game
+            const QImage gameIcon = g.icon;
+            connect(menu.addAction("Create Desktop Shortcut"), &QAction::triggered, this,
+                    [this, id, title, romPath, gameIcon]()
+            {
+                QString error;
+                const QString made = createDesktopShortcut(title, romPath, gameIcon, id, error);
+                if (made.isEmpty())
+                    QMessageBox::warning(this, "melonRA", "The shortcut couldn't be created. " + error);
+                else
+                    QMessageBox::information(this, "melonRA",
+                        QString("A shortcut to %1 is on your desktop.").arg(title.section('\n', 0, 0)));
+            });
+
             // host a netplay room for it (DSiWare can't be played that way)
             QAction* np = menu.addAction("Start Netplay...");
             np->setEnabled(g.platform != "DSi" && !Netplay::Runner::current());
@@ -2088,6 +2229,26 @@ void Widget::showContextMenu(QAbstractItemView* from, const QPoint& pos)
     connect(menu.addAction("Refresh"), &QAction::triggered, this, &Widget::refresh);
     connect(menu.addAction("Game Folders..."), &QAction::triggered, this, &Widget::openSettings);
     menu.exec(from->viewport()->mapToGlobal(pos));
+}
+
+void Widget::setFavorite(const QString& id, bool on)
+{
+    QSet<QString> ids = model->favoriteIds();
+    if (on) ids.insert(id);
+    else ids.remove(id);
+    setFavorites(ids);
+    model->setFavorites(ids);
+    static_cast<ProxyModel*>(proxy)->invalidate();
+    updatePage();
+}
+
+void Widget::updateTabs()
+{
+    // the tabs appear with the first favorite, and go with the last one
+    bool any = false;
+    for (int i = 0; i < model->rowCount() && !any; i++) any = model->isFavorite(i);
+    if (!any && tabs->currentIndex() != 0) tabs->setCurrentIndex(0);
+    tabs->setVisible(any);
 }
 
 void Widget::addViewOptions(QMenu& menu)
@@ -2207,7 +2368,7 @@ void Widget::restoreHeader()
             {
                 header->moveSection(header->visualIndex(c), Model::NumColumns - 1);
                 header->setSectionHidden(c, true);
-                header->resizeSection(c, c == Model::Col_PlayTime ? 230 : 170);
+                header->resizeSection(c, c == Model::Col_PlayTime ? 230 : c == Model::Col_LastPlayed ? 130 : 170);
             }
             saveHeader();
         }
@@ -2231,6 +2392,8 @@ void Widget::defaultColumns()
     header->setSectionHidden(Model::Col_FileName, true);
     header->setSectionHidden(Model::Col_Achievements, true);
     header->setSectionHidden(Model::Col_PlayTime, true);
+    header->setSectionHidden(Model::Col_LastPlayed, true);
+    header->resizeSection(Model::Col_LastPlayed, 130);
     header->resizeSection(Model::Col_Achievements, 170);
     header->resizeSection(Model::Col_PlayTime, 230);
     header->resizeSection(Model::Col_Developer, 160);

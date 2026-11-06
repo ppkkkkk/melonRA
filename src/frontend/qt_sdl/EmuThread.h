@@ -19,7 +19,10 @@
 #ifndef EMUTHREAD_H
 #define EMUTHREAD_H
 
+#include <memory>
+
 #include <QElapsedTimer>
+#include <QImage>
 #include <QThread>
 #include <QMutex>
 #include <QSemaphore>
@@ -43,6 +46,7 @@ class NDS;
 
 namespace Netplay { struct Console; }
 class EmuInstance;
+class RewindBuffer;
 class MainWindow;
 class ScreenPanelGL;
 
@@ -53,6 +57,7 @@ class EmuThread : public QThread
 
 public:
     explicit EmuThread(EmuInstance* inst, QObject* parent = nullptr);
+    ~EmuThread() override;
 
     void attachWindow(MainWindow* window);
     void detachWindow(MainWindow* window);
@@ -132,7 +137,8 @@ public:
     void ejectCart(bool gba);
     int insertGBAAddon(int type, QString& errorstr);
 
-    int saveState(const QString& filename);
+    // thumbnail: also keep a picture of both screens, as <filename>.png
+    int saveState(const QString& filename, bool thumbnail = false);
     int loadState(const QString& filename);
     int undoStateLoad();
 
@@ -227,6 +233,17 @@ private:
     double netplayNoteTime = 0;
 
     void countPlayTime(bool finish);
+    // both screens as they're shown now (256x384), on the emulation thread
+    QImage grabScreens();
+    // keeps the running game's state to resume from, if that's turned on
+    void saveResumeState();
+
+    std::unique_ptr<RewindBuffer> rewind;
+    bool rewindEnabled = false;
+    int rewindSeconds = 0;
+    int rewindCheck = 0;
+    int rewindTick = 0;
+    bool rewindEmpty = false;
     QElapsedTimer playClock;
     qint64 playLast = 0;
     qint64 playPending = 0;   // ms not yet saved
