@@ -71,6 +71,7 @@
 #include <QSortFilterProxyModel>
 #include <QStackedWidget>
 #include <QScrollBar>
+#include <iterator>
 #include <QTabBar>
 #include <QStyledItemDelegate>
 #include <QThread>
@@ -2331,10 +2332,9 @@ void Widget::showHeaderMenu(const QPoint& pos)
     QAction* reset = menu.addAction("Reset Columns");
     connect(reset, &QAction::triggered, this, [this]()
     {
-        model->setShowRegionNames(true);
-        setShowRegionNames(true);
         defaultColumns();
         saveHeader();
+        updateAchievements();
     });
 
     auto* hint = menu.addAction("Drag the column headers to reorder them");
@@ -2409,26 +2409,27 @@ void Widget::defaultColumns()
 {
     QHeaderView* header = view->header();
 
-    // original order, everything but platform and file name shown
-    for (int c = 0; c < Model::NumColumns; c++)
+    // region flags, title, developer, achievements, time played, size, file name
+    const int order[] = {Model::Col_Region, Model::Col_Title, Model::Col_Developer, Model::Col_Achievements,
+                         Model::Col_PlayTime, Model::Col_Size, Model::Col_FileName,
+                         Model::Col_GameCode, Model::Col_Platform, Model::Col_LastPlayed};
+    static_assert(std::size(order) == Model::NumColumns);
+    for (int v = 0; v < Model::NumColumns; v++)
     {
-        header->moveSection(header->visualIndex(c), c);
-        header->setSectionHidden(c, false);
+        header->moveSection(header->visualIndex(order[v]), v);
+        header->setSectionHidden(order[v], v >= 7);
     }
-    header->setSectionHidden(Model::Col_Platform, true);
-    header->setSectionHidden(Model::Col_FileName, true);
-    header->setSectionHidden(Model::Col_Achievements, true);
-    header->setSectionHidden(Model::Col_PlayTime, true);
-    header->setSectionHidden(Model::Col_LastPlayed, true);
-    header->resizeSection(Model::Col_LastPlayed, 130);
+    model->setShowRegionNames(false);
+    setShowRegionNames(false);
+    header->resizeSection(Model::Col_Region, 80);
+    header->resizeSection(Model::Col_Developer, 160);
     header->resizeSection(Model::Col_Achievements, 170);
     header->resizeSection(Model::Col_PlayTime, 230);
-    header->resizeSection(Model::Col_Developer, 160);
-    header->resizeSection(Model::Col_Region, 170);
-    header->resizeSection(Model::Col_GameCode, 90);
-    header->resizeSection(Model::Col_Platform, 110);
     header->resizeSection(Model::Col_Size, 90);
     header->resizeSection(Model::Col_FileName, 200);
+    header->resizeSection(Model::Col_GameCode, 90);
+    header->resizeSection(Model::Col_Platform, 110);
+    header->resizeSection(Model::Col_LastPlayed, 130);
     header->resizeSection(Model::Col_Title, 360);
     header->setSortIndicator(Model::Col_Title, Qt::AscendingOrder);
 
@@ -2439,9 +2440,9 @@ void Widget::defaultColumns()
         int others = 0;
         for (int c = 0; c < Model::NumColumns; c++)
             if (c != Model::Col_Title && !h->isSectionHidden(c)) others += h->sectionSize(c);
-        int room = view->viewport()->width() - others;
-        if (room > h->sectionSize(Model::Col_Title))
-            h->resizeSection(Model::Col_Title, room);
+        // the title takes what's left, down to 260 (narrower windows scroll)
+        const int room = view->viewport()->width() - others;
+        h->resizeSection(Model::Col_Title, std::max(260, room));
         saveHeader();
     });
 }
