@@ -116,6 +116,7 @@ ScreenLayout::ScreenLayout()
     TopEnable = true;
     BotEnable = true;
     HybEnable = false;
+    HybSingle = false;
     HybScreen = 0;
     HybPrevTouchScreen = 0;
 }
@@ -129,7 +130,8 @@ void ScreenLayout::Setup(int screenWidth, int screenHeight,
     bool swapScreens,
     float topAspect, float botAspect)
 {
-    HybEnable = screenLayout == 3;
+    HybEnable = screenLayout == screenLayout_Hybrid || screenLayout == screenLayout_HybridSingle;
+    HybSingle = screenLayout == screenLayout_HybridSingle;
     if (HybEnable)
     {
         screenLayout = screenLayout_Natural;
@@ -449,12 +451,14 @@ void ScreenLayout::Setup(int screenWidth, int screenHeight,
 int ScreenLayout::GetScreenTransforms(float* out, int* kind)
 {
     int num = 0;
-    if (TopEnable)
+    // single hybrid: the small column only shows the screen that isn't large,
+    // in its usual place
+    if (TopEnable && !(HybEnable && HybSingle && HybScreen == 0))
     {
         memcpy(out + 6*num, TopScreenMtx, sizeof(TopScreenMtx));
         kind[num++] = 0;
     }
-    if (BotEnable)
+    if (BotEnable && !(HybEnable && HybSingle && HybScreen == 1))
     {
         memcpy(out + 6*num, BotScreenMtx, sizeof(BotScreenMtx));
         kind[num++] = 1;
@@ -498,7 +502,8 @@ bool ScreenLayout::GetTouchCoords(int& x, int& y, bool clamp)
         }
         else
         {
-            if (vx >= 0 && vx < 256 && vy >= 0 && vy < 192)
+            // (single hybrid shows no small bottom screen here to touch)
+            if (!HybSingle && vx >= 0 && vx < 256 && vy >= 0 && vy < 192)
             {
                 HybPrevTouchScreen = 1;
 

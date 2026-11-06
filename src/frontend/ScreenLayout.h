@@ -25,6 +25,7 @@ enum ScreenLayoutType
     screenLayout_Vertical,
     screenLayout_Horizontal,
     screenLayout_Hybrid,
+    screenLayout_HybridSingle, // hybrid without the second copy of the large screen
     screenLayout_MAX,
 };
 
@@ -97,6 +98,7 @@ private:
     bool TopEnable;
     bool BotEnable;
     bool HybEnable;
+    bool HybSingle;
     int HybScreen;
     int HybPrevTouchScreen; // 0:unknown, 1:buttom screen, 2:hybrid screen
 };

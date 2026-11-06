@@ -90,7 +90,7 @@ const std::vector<Setting>& settings()
         {"Instance0.Window0.ScreenFilter", "Screen filtering", OnOff, {}},
         // screen layout (8-15)
         {"Instance0.Window0.ScreenLayout", "Layout", Choice,
-            {{"Natural", 0}, {"Vertical", 1}, {"Horizontal", 2}, {"Hybrid", 3}}},
+            {{"Natural", 0}, {"Vertical", 1}, {"Horizontal", 2}, {"Hybrid", 3}, {"Hybrid Single", 4}}},
         {"Instance0.Window0.ScreenSizing", "Sizing", Choice,
             {{"Even", 0}, {"Emphasize Top", 1}, {"Emphasize Bottom", 2}, {"Auto", 3},
              {"Top Only", 4}, {"Bottom Only", 5}}},

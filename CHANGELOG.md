@@ -31,6 +31,9 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
 - **Rewind** (Settings > Interface, off by default). Hold the Rewind hotkey to go back through the
   last 10 to 300 seconds (30 by default) at about five times real speed. Not in Hardcore mode or
   netplay; loading a state, resetting or changing games starts the history over.
+- **Hybrid Single screen layout** (View > Screen Layout): like Hybrid, with the large screen and the
+  other one beside it at its usual place, but without the second, small copy of the large screen.
+  Swap Screens chooses which screen is large; it can be picked per game too.
 - **The game's icon in the taskbar.** While a game runs, the window (and the taskbar or Dock) shows
   the game's icon from the game list instead of melonRA's; it goes back when the game stops.
 - **Experimental menu.** New features that are still being tried out go in a menu of their own, next

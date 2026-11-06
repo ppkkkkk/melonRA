@@ -576,7 +576,7 @@ MainWindow::MainWindow(int id, EmuInstance* inst, QWidget* parent) :
                 QMenu * submenu = menu->addMenu("Screen Layout");
                 grpScreenLayout = new QActionGroup(submenu);
 
-                const char *screenlayout[] = {"Natural", "Vertical", "Horizontal", "Hybrid"};
+                const char *screenlayout[] = {"Natural", "Vertical", "Horizontal", "Hybrid", "Hybrid Single"};
 
                 for (int i = 0; i < screenLayout_MAX; i++)
                 {
@@ -3039,7 +3039,7 @@ void MainWindow::onScreenEmphasisToggled()
 }
 
 // hotkeys that step through the layouts and sizings of the View menu
-static const char* const kLayoutNames[screenLayout_MAX] = {"Natural", "Vertical", "Horizontal", "Hybrid"};
+static const char* const kLayoutNames[screenLayout_MAX] = {"Natural", "Vertical", "Horizontal", "Hybrid", "Hybrid Single"};
 static const char* const kSizingNames[screenSizing_MAX] = {"Even", "Emphasize Top", "Emphasize Bottom", "Auto",
                                                            "Top Only", "Bottom Only"};
 
