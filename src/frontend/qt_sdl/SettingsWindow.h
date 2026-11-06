@@ -58,6 +58,7 @@ public:
     static SettingsWindow* current() { return Current; }
 
     void showPage(Page page);
+    void fitPage(Page page);
 
     void accept() override;
     void reject() override;

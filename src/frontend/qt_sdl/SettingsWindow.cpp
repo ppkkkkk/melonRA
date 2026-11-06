@@ -26,6 +26,8 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -227,6 +229,7 @@ void SettingsWindow::showPage(Page page)
 
         slot.Holder->setWidget(body);
         dlg->show();
+        QTimer::singleShot(0, this, [this, page] { fitPage(page); });
     }
 
     Stack->setCurrentIndex(page);
@@ -235,6 +238,35 @@ void SettingsWindow::showPage(Page page)
         QSignalBlocker block(List);
         List->setCurrentRow(page);
     }
+}
+
+// grows the window (never shrinks it) so the page fits without scrolling,
+// as far as the screen allows
+void SettingsWindow::fitPage(Page page)
+{
+    PageSlot& slot = Pages[page];
+    if (!slot.Holder || !slot.Holder->widget()) return;
+
+    const QSize need = slot.Holder->widget()->sizeHint();
+    const QSize have = slot.Holder->viewport()->size();
+    QSize grow(std::max(0, need.width() - have.width()), std::max(0, need.height() - have.height()));
+    if (grow.isNull()) return;
+
+    QRect area = QGuiApplication::primaryScreen()->availableGeometry();
+    if (QScreen* screen = this->screen()) area = screen->availableGeometry();
+    QRect frame = frameGeometry();
+    const QSize extra = frame.size() - size();
+    QSize target = size() + grow;
+    target = target.boundedTo(area.size() - extra);
+    if (target == size()) return;
+    resize(target);
+
+    // keep it on the screen
+    frame = frameGeometry();
+    QPoint pos = frame.topLeft();
+    if (frame.right() > area.right()) pos.rx() = std::max(area.left(), area.right() - frame.width() + 1);
+    if (frame.bottom() > area.bottom()) pos.ry() = std::max(area.top(), area.bottom() - frame.height() + 1);
+    if (pos != frame.topLeft()) move(pos);
 }
 
 void SettingsWindow::accept()

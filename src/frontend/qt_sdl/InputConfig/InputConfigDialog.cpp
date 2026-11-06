@@ -138,47 +138,43 @@ void InputConfigDialog::populatePage(QWidget* page,
     // kind of a hack
     bool ishotkey = (page != ui->tabInput);
 
+    // one row per action with its keyboard and joystick mapping side by side,
+    // the list split into two halves so the page fits without scrolling
+    const int count = (int)labels.size();
+    const int half = count > 12 ? (count + 1) / 2 : count;
+
     QHBoxLayout* main_layout = new QHBoxLayout();
+    main_layout->setSpacing(18);
 
-    QGroupBox* group;
-    QGridLayout* group_layout;
-
-    group = new QGroupBox("Keyboard mappings:");
-    main_layout->addWidget(group);
-    group_layout = new QGridLayout();
-    group_layout->setSpacing(1);
     int i = 0;
+    QGridLayout* grid = nullptr;
     for (const char* labelStr : labels)
     {
-        QLabel* label = new QLabel(QString(labelStr)+":");
-        KeyMapButton* btn = new KeyMapButton(&keymap[i], ishotkey);
-
-        group_layout->addWidget(label, i, 0);
-        group_layout->addWidget(btn, i, 1);
+        if (i % half == 0)
+        {
+            grid = new QGridLayout();
+            grid->setHorizontalSpacing(6);
+            grid->setVerticalSpacing(2);
+            grid->setColumnStretch(0, 1);
+            grid->setRowStretch(half + 1, 1);
+            QLabel* keys = new QLabel("Keyboard");
+            QLabel* joy = new QLabel("Joystick");
+            keys->setAlignment(Qt::AlignCenter);
+            joy->setAlignment(Qt::AlignCenter);
+            grid->addWidget(keys, 0, 1);
+            grid->addWidget(joy, 0, 2);
+            main_layout->addLayout(grid, 1);
+        }
+        const int row = i % half + 1;
+        KeyMapButton* key = new KeyMapButton(&keymap[i], ishotkey);
+        JoyMapButton* joy = new JoyMapButton(&joymap[i], ishotkey);
+        key->setMinimumWidth(110);
+        joy->setMinimumWidth(110);
+        grid->addWidget(new QLabel(QString(labelStr) + ":"), row, 0);
+        grid->addWidget(key, row, 1);
+        grid->addWidget(joy, row, 2);
         i++;
     }
-    group_layout->setRowStretch(labels.size(), 1);
-    group->setLayout(group_layout);
-    group->setMinimumWidth(275);
-
-    group = new QGroupBox("Joystick mappings:");
-    main_layout->addWidget(group);
-    group_layout = new QGridLayout();
-    group_layout->setSpacing(1);
-    i = 0;
-    for (const char* labelStr : labels)
-    {
-        QLabel* label = new QLabel(QString(labelStr)+":");
-        JoyMapButton* btn = new JoyMapButton(&joymap[i], ishotkey);
-
-        group_layout->addWidget(label, i, 0);
-        group_layout->addWidget(btn, i, 1);
-        i++;
-    }
-    group_layout->setRowStretch(labels.size(), 1);
-    group->setLayout(group_layout);
-    group->setMinimumWidth(275);
-
     page->setLayout(main_layout);
 }
 
