@@ -3069,7 +3069,7 @@ void MainWindow::onScreenRotationCycled()
     const int rot = (windowCfg.GetInt("ScreenRotation") + 1) % screenRot_MAX;
     windowCfg.SetInt("ScreenRotation", rot);
     if (hasMenu) actScreenRotation[rot]->setChecked(true);
-    osdAddMessage(0, QString("Screen rotation: %1%2").arg(rot * 90).arg(QChar(0x00B0)).toUtf8().constData());
+    osdAddMessage(0, QString("Screen rotation: %1 degrees").arg(rot * 90).toUtf8().constData());
 
     emit screenLayoutChange();
 }
