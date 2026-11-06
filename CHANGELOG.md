@@ -62,8 +62,7 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
     smoothness on slower connections.
   - melonRA warns if the consoles ever stop matching.
   - While a netplay game runs, savestates, pausing, fast forward, cheats, the microphone and the
-    internet connection of the games are off, and the DS runs at its own speed with the software
-    renderer.
+    internet connection of the games are off, and the DS runs at its own speed.
   - Doesn't work in Hardcore mode until RetroAchievements says whether netplay is allowed there.
   - Right-click a game in the list → Start Netplay... hosts a room for it.
   - **The room** shows each player's status and ping, says what to do next, and gives the host the
@@ -77,6 +76,12 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
     game stopped while it's saving can leave its save incomplete (as with switching a DS off then).
 - **Game title in the window title**, e.g. "LEGO Indiana Jones - melonRA 0.4.0 (abc1234)", with
   "[Netplay]" at the end during netplay.
+- **Smaller downloads.** The Linux AppImage is about 8 MB (23%) smaller and the Windows download
+  about 1.5 MB (10%) smaller: unused image formats, archive encryption support and most of the ICU
+  text data (melonRA only needs its sorting, case and time zone parts) are left out.
+- In Hardcore mode, RAM Search closes if it was open.
+- The privacy policy lists every feature that uses the network and every file melonRA keeps.
+- Updated to the latest melonDS.
 
 ## 0.4.0
 
