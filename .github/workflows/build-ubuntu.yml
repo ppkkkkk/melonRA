@@ -67,7 +67,17 @@ jobs:
         EXTRA_QT_PLUGINS: waylandcompositor
         QMAKE: /usr/lib/qt6/bin/qmake
       run: |
-        ./linuxdeploy-${{ matrix.arch.name }}.AppImage --appdir AppDir --plugin qt --output appimage
+        ./linuxdeploy-${{ matrix.arch.name }}.AppImage --appdir AppDir --plugin qt
+        # leave out what melonRA never uses: image formats it doesn't read, and
+        # most of the ICU data (Qt only needs its sorting, case and time zone parts)
+        rm -f AppDir/usr/plugins/imageformats/libqgif.so AppDir/usr/plugins/imageformats/libqico.so
+        icu=$(ls AppDir/usr/lib/libicudata.so.* 2>/dev/null | head -1)
+        if [ -n "$icu" ]; then
+          python3 tools/trim-icu-data.py "$icu" icu-trim
+          (cd icu-trim && gcc -shared -nostdlib -Wl,-soname,"$(basename "$icu")" -o libicudata.so icudt.S && strip libicudata.so)
+          cp icu-trim/libicudata.so "$icu"
+        fi
+        ./linuxdeploy-${{ matrix.arch.name }}.AppImage --appdir AppDir --output appimage
     - uses: actions/upload-artifact@v7
       with:
         name: melonRA-appimage-${{ matrix.arch.name }}
