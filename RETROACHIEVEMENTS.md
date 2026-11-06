@@ -37,6 +37,8 @@ local-multiplayer instances play without them.
   - hashes the ROM in `loadROM`
   - appends the rcheevos progress to savestates
   - blocks state loading, undo, cheats and the GDB stub in hardcore
+  - closes RAM Search when hardcore becomes active (it can't be opened in
+    hardcore either)
 - `Window.cpp`
   - adds the *RetroAchievements* menu
   - when a blocked feature is used in hardcore, shows a short note on screen

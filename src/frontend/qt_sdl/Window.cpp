@@ -2367,6 +2367,13 @@ void MainWindow::onRAStateChanged()
     RA::Manager* ra = RA::Manager::get();
     if (!ra) return;
 
+    // memory tools can't stay open once Hardcore applies
+    if (ra->hardcoreActive() && RAMInfoDialog::currentDlg)
+    {
+        RAMInfoDialog::currentDlg->close();
+        emuInstance->osdAddMessage(0, "RAM Search was closed: it doesn't work in Hardcore mode");
+    }
+
     if (hasMenu && actRAStatus)
     {
         QString status;

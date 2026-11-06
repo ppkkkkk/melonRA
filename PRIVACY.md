@@ -1,6 +1,6 @@
 # melonRA Privacy Policy
 
-_Last updated: 2026-10-20_
+_Last updated: 2026-11-06_
 
 melonRA is a free, open-source emulator. It has **no telemetry, analytics,
 advertising or accounts of its own**, and the melonRA developers run no
@@ -8,7 +8,10 @@ servers and receive no data from you.
 
 ## What melonRA sends, and to whom
 
-melonRA talks to the network for RetroAchievements and to check for updates.
+melonRA only uses the network for the features below, and only while they're
+in use: RetroAchievements, update checks, game cover downloads, Discord
+status and invites, the online play server you pick, and netplay (including
+the router and STUN requests made when you host).
 
 ### RetroAchievements
 
@@ -156,7 +159,14 @@ you use them.
   Settings.
 - Savestates may contain achievement progress (hit counts) for the game.
 - `melonRA.toml` also keeps the name, address and ports you last used for
-  netplay, to fill them in next time.
+  netplay, to fill them in next time, and the games you've marked as
+  favorites.
+- `melonRA-playtime.json` holds how long you've played each game and when you
+  last played it. You can delete it at any time.
+- Save states saved to a slot have a screenshot next to them (`.png`), and,
+  if "resume where you left off" is on, each game's last state is kept as a
+  `.mlr` file with its screenshot.
+- `shortcut-icons/` holds the icons of the desktop shortcuts you've made.
 
 Nothing is kept anywhere else, and nothing leaves your computer except the
 traffic described above.
