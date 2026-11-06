@@ -276,6 +276,7 @@ private:
     void setSearchBarVisible(bool visible);
     void addViewOptions(QMenu& menu);
     void setFavorite(const QString& id, bool on);
+    void makeRoomFor(int column);
     void updateTabs();
 
     // RetroAchievements progress, for the Achievements column and the stars

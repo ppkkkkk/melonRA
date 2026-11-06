@@ -70,6 +70,7 @@
 #include <QShowEvent>
 #include <QSortFilterProxyModel>
 #include <QStackedWidget>
+#include <QScrollBar>
 #include <QTabBar>
 #include <QStyledItemDelegate>
 #include <QThread>
@@ -2303,6 +2304,7 @@ void Widget::showHeaderMenu(const QPoint& pos)
         connect(act, &QAction::toggled, this, [this, header, c](bool on)
         {
             header->setSectionHidden(c, !on);
+            if (on) makeRoomFor(c);
             saveHeader();
             if (c == Model::Col_Achievements) updateAchievements();
         });
@@ -2344,6 +2346,31 @@ void Widget::showHeaderMenu(const QPoint& pos)
 void Widget::openSettings()
 {
     emit settingsRequested();
+}
+
+// a column just shown lands at the end, often past the right edge where it
+// can't be grabbed: the title gives up room until every column fits, and the
+// list scrolls to show the new one
+void Widget::makeRoomFor(int column)
+{
+    QHeaderView* header = view->header();
+    int total = 0;
+    for (int c = 0; c < Model::NumColumns; c++)
+        if (!header->isSectionHidden(c)) total += header->sectionSize(c);
+    const int over = total - view->viewport()->width();
+    if (over > 0)
+    {
+        const int title = header->sectionSize(Model::Col_Title);
+        header->resizeSection(Model::Col_Title, std::max(260, title - over));
+    }
+    QTimer::singleShot(0, this, [this, column]()
+    {
+        QHeaderView* h = view->header();
+        const int right = h->sectionPosition(column) + h->sectionSize(column);
+        QScrollBar* bar = view->horizontalScrollBar();
+        if (right > bar->value() + view->viewport()->width())
+            bar->setValue(right - view->viewport()->width());
+    });
 }
 
 void Widget::saveHeader()
