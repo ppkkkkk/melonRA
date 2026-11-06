@@ -3086,12 +3086,15 @@ void MainWindow::updateGameIcon(bool running)
             icon.addPixmap(QPixmap::fromImage(img.scaled(img.size() * scale, Qt::IgnoreAspectRatio,
                                                          Qt::FastTransformation)));
     }
+    // no game icon: melonRA's own, set explicitly (an empty icon leaves
+    // Windows showing a blank one)
+    if (icon.isNull()) icon = QIcon(":/melon-icon");
     setWindowIcon(icon);
 
 #ifdef Q_OS_MACOS
     // the Dock shows the application's icon rather than the window's
     if (windowID == 0 && emuInstance && emuInstance->getInstanceID() == 0)
-        QApplication::setWindowIcon(icon.isNull() ? QIcon(":/melon-icon") : icon);
+        QApplication::setWindowIcon(icon);
 #endif
 }
 
