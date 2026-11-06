@@ -17,7 +17,11 @@
 			"platform": "linux",
 			"features": [ "alsa" ]
 		},
-		"libarchive",
+		{
+			"name": "libarchive",
+			"default-features": false,
+			"features": [ "bzip2", "lz4", "lzma", "zstd" ]
+		},
 		"zstd",
 		"enet",
 		{
