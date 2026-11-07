@@ -11,11 +11,16 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
 - **One Settings window.** Every settings page (Emulation, Input and Hotkeys, Video, Camera, Audio,
   Multiplayer, Wi-Fi, Firmware, Interface, Paths, Updates, RetroAchievements) is in one window with a
   list on the left, so you can move between them without closing anything. The Config menu items open
-  it on their page. OK saves every page you changed; Cancel undoes them.
+  it on their page. OK saves every page you changed; Cancel undoes them. The window grows to fit the
+  page it shows, and Input and Hotkeys lists each hotkey's keyboard and joystick mapping side by
+  side, so nothing needs scrolling.
 - **Time Played column** in the game list (right-click the column headers to show it): how long
   you've played each game, such as "27 hours, 28 minutes, 30 seconds", with when you last played it
   on hover. Time counts while a game runs and not while it's paused. It's kept in
   `melonRA-playtime.json` next to the settings.
+- **New default game list columns:** Region (flags), Title, Developer, Achievements, Time Played,
+  Size and File Name. Saved layouts are kept; Reset Columns switches to the new one. A column
+  ticked in the header menu now fits on screen instead of landing past the right edge.
 - **Favorites.** Right-click a game > Add to Favorites puts a heart in front of its title (and on
   its tile in the grid); All Games and Favorites tabs appear above the list once there's one.
 - **Last Played column** in the game list, off until ticked in the column menu: Today, Yesterday or
@@ -84,6 +89,7 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
   text data (melonRA only needs its sorting, case and time zone parts) are left out.
 - In Hardcore mode, RAM Search closes if it was open.
 - The privacy policy lists every feature that uses the network and every file melonRA keeps.
+- The screen rotation message says "180 degrees" (the on-screen font has no degree sign).
 - Updated to the latest melonDS.
 
 ## 0.4.0
