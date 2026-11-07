@@ -352,6 +352,7 @@ RoomDialog::RoomDialog(MainWindow* win, Runner* runner) : QDialog(nullptr), Win(
     GameHint = plainLabel(tr("In the game, open its wireless multiplayer mode: one player creates a group "
                              "and the others join it, whoever hosted here."), this);
     GameHint->setStyleSheet("color: palette(placeholder-text);");
+    GameHint->hide();   // said on screen when the game starts instead
 
     // players
     Players = new QTreeWidget(this);
@@ -405,9 +406,7 @@ RoomDialog::RoomDialog(MainWindow* win, Runner* runner) : QDialog(nullptr), Win(
         });
         delayRow->addWidget(UseSuggested);
     }
-    QWidget* delayHelp = plainLabel(tr("How many frames ahead everyone's buttons are sent. Higher is smoother on "
-                                       "slow connections; lower reacts faster. It can be changed during the game."),
-                                    this);
+    QWidget* delayHelp = plainLabel(tr("Higher is smoother on slow connections, lower reacts faster."), this);
     delayHelp->setStyleSheet("color: palette(placeholder-text);");
 
     // chat
@@ -484,8 +483,13 @@ RoomDialog::RoomDialog(MainWindow* win, Runner* runner) : QDialog(nullptr), Win(
     refreshDelay();
 }
 
-// a read-only address with a Copy button
-static QWidget* addressField(const QString& addr, QWidget* box)
+// whether internet addresses are shown in the room (hidden at first, so they
+// don't end up in screenshots or on stream)
+static bool showAddresses = false;
+
+// a read-only address with a Copy button; a private one is hidden behind dots
+// until Show is pressed, and Copy still copies it
+static QWidget* addressField(const QString& addr, QWidget* box, bool hidden = false)
 {
     QWidget* w = new QWidget(box);
     QHBoxLayout* l = new QHBoxLayout(w);
@@ -493,6 +497,23 @@ static QWidget* addressField(const QString& addr, QWidget* box)
     QLineEdit* field = new QLineEdit(addr, w);
     field->setReadOnly(true);
     l->addWidget(field, 1);
+    if (hidden)
+    {
+        field->setEchoMode(showAddresses ? QLineEdit::Normal : QLineEdit::Password);
+        QPushButton* show = new QPushButton(QCoreApplication::translate("Netplay::RoomDialog", "Show"), w);
+        show->setCheckable(true);
+        show->setChecked(showAddresses);
+        show->setAutoDefault(false);
+        show->setToolTip(QCoreApplication::translate("Netplay::RoomDialog",
+            "Your internet address is hidden so it doesn't show up in screenshots or on stream. "
+            "Copy works either way."));
+        QObject::connect(show, &QPushButton::toggled, field, [field](bool on)
+        {
+            showAddresses = on;
+            field->setEchoMode(on ? QLineEdit::Normal : QLineEdit::Password);
+        });
+        l->addWidget(show);
+    }
     QPushButton* copy = new QPushButton(QCoreApplication::translate("Netplay::RoomDialog", "Copy"), w);
     copy->setAutoDefault(false);
     QObject::connect(copy, &QPushButton::clicked, w, [addr] { QGuiApplication::clipboard()->setText(addr); });
@@ -509,7 +530,8 @@ QWidget* RoomDialog::makeAddressBox()
     if (!s->isHost())
     {
         QVBoxLayout* l = new QVBoxLayout(box);
-        l->addWidget(plainLabel(tr("Connected to %1, port %2.").arg(s->address()).arg(s->port()), box));
+        l->addWidget(plainLabel(tr("Connected to the host at:"), box));
+        l->addWidget(addressField(QString("%1:%2").arg(s->address()).arg(s->port()), box, true));
         return box;
     }
 
@@ -526,8 +548,7 @@ QWidget* RoomDialog::makeAddressBox()
     else if (!presence->isConnected())
         discord = tr("Open Discord on this computer to let friends join from there.");
     else
-        discord = tr("Invite friends from a Discord chat with + → Invite to play. Only people you invite "
-                     "can join this way.");
+        discord = tr("Invite friends from a Discord chat (+ → Invite to play).");
     QLabel* discordText = plainLabel(discord, box);
     reserveLines(discordText, textWidth);
     form->addRow(tr("Discord:"), discordText);
@@ -536,26 +557,24 @@ QWidget* RoomDialog::makeAddressBox()
     const PortMapper* m = Run->portMapper();
     QString status;
     if (!m || m->state() == PortMapper::State::Working || m->state() == PortMapper::State::Idle)
-        status = tr("Getting your router ready for players on the internet…");
+        status = tr("Opening a port on your router…");
     else if (m->behindSharedAddress())
-        status = tr("Your internet connection shares its address with others (your provider's network, or a "
-                    "second router), so players outside your home network can't connect to you. One of them "
-                    "can host instead.");
+        status = tr("Your connection can't take players from the internet. Have one of them host instead.");
     else if (m->state() == PortMapper::State::Opened)
-        status = tr("The port was opened on your router automatically. It closes again when the room does.");
+        status = tr("Port opened on your router automatically.");
     else
-        status = tr("The port couldn't be opened automatically (%1). Players on the internet can only connect "
-                    "if UDP port %2 is forwarded to this computer in your router's settings.")
-                     .arg(m->problem().isEmpty() ? tr("no answer from the router") : m->problem())
-                     .arg(s->port());
+        status = tr("Couldn't open the port automatically. Players on the internet need UDP port %1 "
+                    "forwarded to this computer.").arg(s->port());
 
     QWidget* internet = new QWidget(box);
     QVBoxLayout* il = new QVBoxLayout(internet);
     il->setContentsMargins(0, 0, 0, 0);
     if (m && !m->publicAddress().isEmpty() && !m->behindSharedAddress())
-        il->addWidget(addressField(QString("%1:%2").arg(m->publicAddress()).arg(m->publicPort()), internet));
+        il->addWidget(addressField(QString("%1:%2").arg(m->publicAddress()).arg(m->publicPort()), internet, true));
     QLabel* statusText = plainLabel(status, internet);
     statusText->setStyleSheet("color: palette(placeholder-text);");
+    if (m && m->state() != PortMapper::State::Opened && !m->problem().isEmpty())
+        statusText->setToolTip(m->problem());
     reserveLines(statusText, textWidth);
     il->addWidget(statusText);
     form->addRow(tr("Internet:"), internet);
@@ -628,11 +647,11 @@ void RoomDialog::refresh()
         if (s->isHost())
         {
             if (s->players() < 2)
-                Status->setText(tr("Step 1 of 2: invite friends on Discord or give them an address below, then wait for them to join."));
+                Status->setText(tr("Invite friends, then wait for them to join."));
             else if (!s->canStart())
                 Status->setText(tr("Waiting for everyone's save to arrive..."));
             else
-                Status->setText(tr("Step 2 of 2: when everyone is here, press Start Game."));
+                Status->setText(tr("Everyone's here? Press Start Game."));
         }
         else
             Status->setText(s->mySlot() < 0 ? tr("Joining the room...")
@@ -642,8 +661,7 @@ void RoomDialog::refresh()
         Status->setText(tr("Starting the game..."));
         break;
     case Session::State::Playing:
-        Status->setText(tr("Playing. Closing this window only hides it: it's under Experimental → "
-                           "Show Netplay Room, and chat also shows on the game screen."));
+        Status->setText(tr("Playing. Closing this window just hides it (Experimental → Show Netplay Room)."));
         break;
     case Session::State::Ended:
         Status->setText(tr("The session has ended."));
