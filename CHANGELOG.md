@@ -6,7 +6,7 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
 - **MINOR** goes up for feature releases.
 - **PATCH** goes up for small updates and bug fixes.
 
-## Unreleased
+## 0.5.0
 
 - **One Settings window.** Every settings page (Emulation, Input and Hotkeys, Video, Camera, Audio,
   Multiplayer, Wi-Fi, Firmware, Interface, Paths, Updates, RetroAchievements) is in one window with a
