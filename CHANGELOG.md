@@ -73,6 +73,7 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
     internet connection of the games are off, and the DS runs at its own speed.
   - Doesn't work in Hardcore mode until RetroAchievements says whether netplay is allowed there.
   - Right-click a game in the list → Start Netplay... hosts a room for it.
+  - The Host window lists each game with its region and game code, e.g. "1 VS 100 (USA) (CIOE)".
   - **The room** shows each player's status and ping, says what to do next, and gives the host the
     address to share (with a Copy button). The internet address stays hidden behind dots until Show
     is pressed, so it doesn't end up in screenshots or on stream; Copy works either way. It has a chat, which also shows on the game screen while

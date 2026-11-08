@@ -144,6 +144,7 @@ HostDialog::HostDialog(MainWindow* parent) : QDialog(parent), Win(parent)
     {
         if (g.notRom || g.platform == "DSi") continue;
         QString label = g.title.isEmpty() ? g.fileName : g.title;
+        if (!g.region.isEmpty() && g.region != "Unknown") label += QString(" (%1)").arg(g.region);
         if (!g.gameCode.isEmpty()) label += QString(" (%1)").arg(g.gameCode);
         Game->addItem(label);
         Paths.append(g.path);
