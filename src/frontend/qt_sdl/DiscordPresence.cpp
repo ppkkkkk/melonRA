@@ -28,9 +28,11 @@
 #include <QPointer>
 #include <QProcess>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QStringList>
 #include <QUuid>
 #include <QtEndian>
+#include <algorithm>
 
 #include "Config.h"
 #include "GameList/Covers.h"
@@ -413,14 +415,55 @@ void Presence::registerLaunchCommand()
         "Categories=Discord;Games;\n"
         "MimeType=x-scheme-handler/%2;\n").arg(quoted, scheme).toUtf8();
     QFile current(dir + "/" + file);
-    if (current.open(QIODevice::ReadOnly) && current.readAll() == desktop) return;
+    const bool same = current.open(QIODevice::ReadOnly) && current.readAll() == desktop;
     current.close();
-    QDir().mkpath(dir);
-    QFile out(dir + "/" + file);
-    if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
-    out.write(desktop);
-    out.close();
-    QProcess::startDetached("xdg-mime", {"default", file, "x-scheme-handler/" + scheme});
+    if (!same)
+    {
+        QDir().mkpath(dir);
+        QFile out(dir + "/" + file);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
+        out.write(desktop);
+        out.close();
+    }
+
+    // make melonRA the handler for the link, checked every start since another
+    // program or an older registration may have changed it
+    const QString mime = "x-scheme-handler/" + scheme;
+    const QString configDir = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+    QFile list(configDir + "/mimeapps.list");
+    QString text;
+    if (list.open(QIODevice::ReadOnly | QIODevice::Text)) text = QString::fromUtf8(list.readAll());
+    list.close();
+    const QString entry = mime + "=" + file + ";";
+    if (same && text.contains(entry)) return;
+
+    if (!text.contains(entry))
+    {
+        QStringList lines = text.split('\n');
+        while (!lines.isEmpty() && lines.last().isEmpty()) lines.removeLast();
+        lines.erase(std::remove_if(lines.begin(), lines.end(), [&](const QString& l)
+                    { return l.startsWith(mime + "="); }), lines.end());
+        int at = lines.indexOf("[Default Applications]");
+        if (at < 0)
+        {
+            if (!lines.isEmpty()) lines << QString();
+            lines << "[Default Applications]";
+            at = lines.size() - 1;
+        }
+        lines.insert(at + 1, entry);
+        QDir().mkpath(configDir);
+        if (list.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+            list.write((lines.join('\n') + '\n').toUtf8());
+        list.close();
+    }
+
+    // refresh the desktop's list of handlers (KDE keeps its own cache)
+    for (const QString& tool : {QString("update-desktop-database"), QString("kbuildsycoca6"), QString("kbuildsycoca5")})
+    {
+        if (QStandardPaths::findExecutable(tool).isEmpty()) continue;
+        if (tool == "update-desktop-database") QProcess::startDetached(tool, {dir});
+        else { QProcess::startDetached(tool, {}); break; }
+    }
 #endif
 }
 

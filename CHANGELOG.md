@@ -6,6 +6,12 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
 - **MINOR** goes up for feature releases.
 - **PATCH** goes up for small updates and bug fixes.
 
+## Unreleased
+
+- **Fixed:** on Linux, accepting a Discord invite while melonRA was closed could fail with "Unknown
+  protocol" (seen on KDE). melonRA now sets itself as the handler for its Discord links on every
+  start and refreshes the desktop's list of handlers.
+
 ## 0.5.0
 
 - **One Settings window.** Every settings page (Emulation, Input and Hotkeys, Video, Camera, Audio,
