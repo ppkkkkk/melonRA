@@ -36,6 +36,7 @@ regular melonDS desktop app.
   <img src="res/melonRA-showcase-light.png" alt="melonRA's game list and achievements window">
 </picture>
 </p>
+NOTE: This picture is for demonstration purposes only. As of 11/08 you cannot yet earn Hardcore achievements in melonRA.
 
 ## Getting started
 
