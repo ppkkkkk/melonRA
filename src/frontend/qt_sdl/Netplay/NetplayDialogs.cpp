@@ -22,6 +22,7 @@
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QComboBox>
+#include <QCompleter>
 #include <QCoreApplication>
 #include <QDialogButtonBox>
 #include <QFileDialog>
@@ -150,6 +151,18 @@ HostDialog::HostDialog(MainWindow* parent) : QDialog(parent), Win(parent)
         Paths.append(g.path);
     }
 
+    // type part of a name to find a game; the arrow still shows the whole list
+    Game->setEditable(true);
+    Game->setInsertPolicy(QComboBox::NoInsert);
+    Game->setMaxVisibleItems(15);
+    Game->lineEdit()->setPlaceholderText(tr("Type to search your games"));
+    QCompleter* search = new QCompleter(Game->model(), Game);
+    search->setCaseSensitivity(Qt::CaseInsensitive);
+    search->setFilterMode(Qt::MatchContains);
+    search->setCompletionMode(QCompleter::PopupCompletion);
+    search->setMaxVisibleItems(15);
+    Game->setCompleter(search);
+
     Port = new QSpinBox(this);
     Port->setRange(1024, 65535);
     Port->setValue(cfg.GetInt("Port") > 0 ? cfg.GetInt("Port") : kDefaultPort);
@@ -229,10 +242,23 @@ bool HostDialog::openPort() const { return OpenPort->isChecked(); }
 
 void HostDialog::accept()
 {
-    int i = Game->currentIndex();
+    // the typed text picks the game: an exact name, or the only one containing it
+    const QString typed = Game->currentText().trimmed();
+    int i = typed.isEmpty() ? -1 : Game->findText(typed, Qt::MatchFixedString);
+    if (i < 0 && !typed.isEmpty())
+    {
+        for (int j = 0; j < Game->count(); j++)
+        {
+            if (!Game->itemText(j).contains(typed, Qt::CaseInsensitive)) continue;
+            if (i >= 0) { i = -1; break; }
+            i = j;
+        }
+    }
     if (i < 0 || i >= Paths.size())
     {
-        QMessageBox::warning(this, tr("Host Netplay Game"), tr("Choose a game to play."));
+        QMessageBox::warning(this, tr("Host Netplay Game"),
+                             typed.isEmpty() ? tr("Choose a game to play.")
+                                             : tr("Pick a game from the list."));
         return;
     }
     ROMPath = Win->splitArchivePath(Paths[i], true);
