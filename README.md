@@ -29,6 +29,7 @@ regular melonDS desktop app.
 - **Game Settings** per game (graphics, layout, Wi-Fi, emulation, cheats), from the game list
 - **Online play server picker** (Wiimmfi, Kaeru WFC or a custom DNS) in Wi-Fi Settings
 - **Built-in updater** with Stable and Nightly channels
+- **Experimental netplay** with Discord invite support
 
 <p align="center">
 <picture>
