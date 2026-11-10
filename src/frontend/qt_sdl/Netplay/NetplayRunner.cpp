@@ -509,14 +509,15 @@ void Runner::tearDown()
     if (MPInterface::GetType() == MPInterface_Netplay)
         static_cast<LockstepMP&>(MPInterface::Get()).Shutdown();
 
+    // the other players' consoles, also when setting them up stopped halfway
+    for (int k = kMaxPlayers - 1; k >= 1; k--)
+    {
+        if (EmuInstance* inst = emuInstanceAt(k); inst && inst->netplay)
+            deleteEmuInstance(k);
+    }
+
     if (ConsolesUp)
     {
-        for (int k = kMaxPlayers - 1; k >= 1; k--)
-        {
-            if (EmuInstance* inst = emuInstanceAt(k); inst && inst->netplay)
-                deleteEmuInstance(k);
-        }
-
         EmuThread* thread0 = Inst->getEmuThread();
         if (thread0->emuIsActive())
             thread0->emuStop(true);

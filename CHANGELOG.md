@@ -11,6 +11,21 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
 - **Fixed:** on Linux, accepting a Discord invite while melonRA was closed could fail with "Unknown
   protocol" (seen on KDE). melonRA now sets itself as the handler for its Discord links on every
   start and refreshes the desktop's list of handlers.
+- **Fixed (netplay):** a player joining while another player's save was still being sent was thrown
+  out with "The host sent something melonRA didn't understand." They now get the part that has arrived,
+  and the rest as it comes in.
+- **Fixed (netplay):** if setting up the game failed halfway, the other players' hidden consoles
+  kept running until melonRA was closed.
+- **Fixed (netplay):** closing a room while the router was still opening the port could leave the
+  port open for up to an hour. melonRA now waits for the router's answer and closes it again.
+- **Fixed (netplay):** the solar sensor's "increase" hotkey still worked during netplay.
+- **Fixed:** rewind kept its history when the firmware was booted or a cartridge was inserted,
+  ejected or had a save imported, so rewinding could step back into the previous game.
+- **Fixed:** a damaged ROM file with a bad banner address could be read out of bounds while the game
+  list was scanned.
+- **Fixed:** an offline unlock is kept, not dropped, if the saved login has expired when it's sent.
+- Closing a netplay room with nobody connected no longer waits a fifth of a second.
+- Names and chat from other players reject malformed UTF-8 more strictly.
 
 ## 0.5.0
 

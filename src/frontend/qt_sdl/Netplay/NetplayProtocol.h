@@ -238,9 +238,11 @@ inline std::string CleanText(const std::string& in, const std::string& fallback,
             cp = (cp << 6) | (cc & 0x3F);
         }
         if (!valid) break;
+        // a character written with more bytes than it needs isn't valid UTF-8
+        if ((len == 2 && cp < 0x80) || (len == 3 && cp < 0x800) || (len == 4 && cp < 0x10000)) break;
 
-        bool control = cp < 0x20 || (cp >= 0x7F && cp < 0xA0) ||
-                       (cp >= 0x200B && cp <= 0x200F) || (cp >= 0x202A && cp <= 0x202E) ||
+        bool control = cp < 0x20 || (cp >= 0x7F && cp < 0xA0) || cp == 0x061C ||
+                       (cp >= 0x200B && cp <= 0x200F) || (cp >= 0x2028 && cp <= 0x202E) ||
                        (cp >= 0x2066 && cp <= 0x2069) || cp == 0xFEFF || cp > 0x10FFFF ||
                        (cp >= 0xD800 && cp <= 0xDFFF);
         if (!control && out.size() + len <= maxBytes)

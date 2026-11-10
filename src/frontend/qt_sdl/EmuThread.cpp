@@ -253,7 +253,7 @@ void EmuThread::run()
                     emuInstance->osdAddMessage(0, "Solar sensor level: %d", level);
                 }
             }
-            if (emuInstance->hotkeyPressed(HK_SolarSensorIncrease))
+            if (!np && emuInstance->hotkeyPressed(HK_SolarSensorIncrease))
             {
                 int level = emuInstance->nds->GBACartSlot.SetInput(GBACart::Input_SolarSensorUp, true);
                 if (level != -1)
@@ -968,6 +968,7 @@ void EmuThread::handleMessages()
 
         case msg_BootFirmware:
             saveResumeState();
+            if (rewind) rewind->clear();
             msgResult = 0;
             if (!emuInstance->bootToMenu(msgError))
                 break;
@@ -985,6 +986,7 @@ void EmuThread::handleMessages()
             break;
 
         case msg_InsertCart:
+            if (rewind) rewind->clear();
             msgResult = 0;
             if (!emuInstance->loadROM(msg.param.value<QStringList>(), false, msgError))
                 break;
@@ -997,10 +999,12 @@ void EmuThread::handleMessages()
             break;
 
         case msg_EjectCart:
+            if (rewind) rewind->clear();
             emuInstance->ejectCart();
             break;
 
         case msg_InsertGBACart:
+            if (rewind) rewind->clear();
             msgResult = 0;
             if (!emuInstance->loadGBAROM(msg.param.value<QStringList>(), msgError))
                 break;
@@ -1009,12 +1013,14 @@ void EmuThread::handleMessages()
             break;
 
         case msg_InsertGBAAddon:
+            if (rewind) rewind->clear();
             msgResult = 0;
             emuInstance->loadGBAAddon(msg.param.value<int>(), msgError);
             msgResult = 1;
             break;
 
         case msg_EjectGBACart:
+            if (rewind) rewind->clear();
             emuInstance->ejectGBACart();
             break;
 
@@ -1044,6 +1050,7 @@ void EmuThread::handleMessages()
 
         case msg_ImportSavefile:
             {
+                if (rewind) rewind->clear();
                 msgResult = 0;
                 auto f = Platform::OpenFile(msg.param.value<QString>().toStdString(), Platform::FileMode::Read);
                 if (!f) break;

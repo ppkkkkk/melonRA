@@ -101,6 +101,11 @@ void PortMapper::start(quint16 port, bool tryRouter)
     Problem.clear();
     Shared = false;
     Mapped = false;
+    Stopping = false;
+    Router.clear();
+    Control.clear();
+    Service.clear();
+    StunIndex = 0;
 
     // the local address that reaches the internet, until the router says better
     for (const QHostAddress& a : QNetworkInterface::allAddresses())
@@ -226,6 +231,7 @@ void PortMapper::fetchDescription(const QUrl& url)
 void PortMapper::onDescription(QNetworkReply* reply, const QUrl& url)
 {
     reply->deleteLater();
+    if (Stopping) return;
     if (reply->error() != QNetworkReply::NoError)
     {
         giveUp(tr("The router didn't describe itself."));
@@ -351,6 +357,7 @@ void PortMapper::addMapping()
         .arg(external).arg(Port).arg(Local).arg(Lease);
 
     QNetworkReply* reply = soap("AddPortMapping", args);
+    Adding = reply;
     connect(reply, &QNetworkReply::finished, this, [this, reply] { onMappingReply(reply); });
 }
 
@@ -365,6 +372,7 @@ void PortMapper::onMappingReply(QNetworkReply* reply)
         const bool first = !Mapped;
         Mapped = true;
         PublicPort = (quint16)(Port + Attempt);
+        if (Stopping) return;   // stop() closes it again
         if (Lease > 0 && !RenewTimer.isActive())
             RenewTimer.start(Lease * 1000 / 2);
         if (first)
@@ -375,6 +383,8 @@ void PortMapper::onMappingReply(QNetworkReply* reply)
         }
         return;
     }
+
+    if (Stopping) return;
 
     if (Mapped)
     {
@@ -432,6 +442,7 @@ void PortMapper::askExternalAddress()
 void PortMapper::onExternalAddress(QNetworkReply* reply)
 {
     reply->deleteLater();
+    if (Stopping) return;
     const QByteArray body = reply->read(kMaxReply);
     QHostAddress addr(soapValue(body, "NewExternalIPAddress"));
 
@@ -462,6 +473,7 @@ void PortMapper::giveUp(const QString& why)
 {
     if (Ssdp) Ssdp->deleteLater();
     SearchTimer.stop();
+    if (Stopping) return;
     CurState = State::NotOpened;
     Problem = why;
     emit changed();
@@ -475,7 +487,7 @@ void PortMapper::giveUp(const QString& why)
 void PortMapper::askStun()
 {
     if (Stun) Stun->deleteLater();
-    if (StunIndex >= stunServers.size()) return;
+    if (Stopping || StunIndex >= stunServers.size()) return;
 
     const QString server = stunServers[StunIndex];
     const int colon = server.lastIndexOf(':');
@@ -493,7 +505,7 @@ void PortMapper::askStun()
     QPointer<QUdpSocket> sock = Stun;
     QHostInfo::lookupHost(host, this, [this, sock, port](const QHostInfo& info)
     {
-        if (!sock) return;
+        if (!sock || Stopping) return;
         QHostAddress to;
         for (const QHostAddress& a : info.addresses())
             if (a.protocol() == QAbstractSocket::IPv4Protocol) { to = a; break; }
@@ -570,6 +582,17 @@ void PortMapper::stop(int waitMs)
     RenewTimer.stop();
     if (Ssdp) Ssdp->deleteLater();
     if (Stun) Stun->deleteLater();
+    Stopping = true;
+
+    // a forwarding request still on its way is waited for, so the port it
+    // opens can be closed again
+    if (Adding && !Adding->isFinished())
+    {
+        QEventLoop loop;
+        QTimer::singleShot(waitMs, &loop, &QEventLoop::quit);
+        connect(Adding.data(), &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
 
     if (Mapped && Control.isValid())
     {

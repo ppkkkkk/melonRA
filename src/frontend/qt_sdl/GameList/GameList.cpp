@@ -314,11 +314,11 @@ bool readGameFrom(QIODevice& f, const QString& fileName, Game& game)
     // title, publisher and icon from the banner
     QString title;
     uint32_t bannerOffset = read32(header, kHdrBannerOffset);
-    if (bannerOffset >= 0x200u && bannerOffset + kBnrTitles + kBnrTitleSize <= (quint64)size &&
+    if (bannerOffset >= 0x200u && (quint64)bannerOffset + kBnrTitles + kBnrTitleSize <= (quint64)size &&
         f.seek(bannerOffset))
     {
         QByteArray banner = f.read(kBnrReadSize);
-        uint16_t version = read16(banner, 0);
+        const uint16_t version = banner.size() >= 2 ? read16(banner, 0) : 0;
         if (banner.size() >= kBnrTitles + 6 * kBnrTitleSize && (version & 0xFF) >= 1)
         {
             game.icon = decodeIcon(banner);

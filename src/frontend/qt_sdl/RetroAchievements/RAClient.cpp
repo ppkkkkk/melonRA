@@ -24,6 +24,7 @@
 #include "RAPendingQueue.h"
 #include "RAOfflineCache.h"
 
+#include <cmath>
 #include <cstring>
 
 #include <QCoreApplication>
@@ -558,7 +559,7 @@ void Manager::saveOverlayStyle(const Overlay::Style& st)
         cfg.SetBool(key + "Bold", es.bold);
         cfg.SetBool(key + "Border", es.border);
     }
-    cfg.SetInt("OverlayScale", (int)(st.scale * 100.f + 0.5f));
+    cfg.SetInt("OverlayScale", (int)std::lround(st.scale * 100.f));
     cfg.SetBool("OverlayBlackAndWhite", !st.colored);
     Config::Save();
 }

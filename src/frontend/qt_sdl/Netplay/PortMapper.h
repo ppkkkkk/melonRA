@@ -126,6 +126,8 @@ private:
     QUrl Control;
     QString Service;          // WANIPConnection:1, WANIPConnection:2 or WANPPPConnection:1
     bool Mapped = false;
+    bool Stopping = false;    // stop() ran: replies still on their way change nothing
+    QPointer<QNetworkReply> Adding;   // the port forwarding request under way
     int Lease = 3600;
     int Attempt = 0;          // external ports tried
     QByteArray StunTxId;

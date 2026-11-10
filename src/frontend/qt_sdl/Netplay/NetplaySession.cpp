@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <chrono>
 #include <iterator>
 #include <QMetaObject>
@@ -189,6 +190,11 @@ void Session::provideROM(const std::array<u8, 20>& hash, const ConsoleInfo& cons
 bool Session::canStart() const
 {
     std::lock_guard<std::mutex> lk(Lock);
+    return canStartLocked();
+}
+
+bool Session::canStartLocked() const
+{
     if (!IsHost || CurState != State::Lobby) return false;
 
     int n = 0;
@@ -203,9 +209,8 @@ bool Session::canStart() const
 
 void Session::start()
 {
-    if (!canStart()) return;
-
     std::lock_guard<std::mutex> lk(Lock);
+    if (!canStartLocked()) return;
 
     Order.clear();
     for (int i = 0; i < kMaxPlayers; i++)
@@ -423,6 +428,30 @@ void Session::sendPings()
 }
 
 // --- state for the UI ---
+
+u16 Session::port() const
+{
+    std::lock_guard<std::mutex> lk(Lock);
+    return Port;
+}
+
+QString Session::address() const
+{
+    std::lock_guard<std::mutex> lk(Lock);
+    return Address;
+}
+
+RoomInfo Session::room() const
+{
+    std::lock_guard<std::mutex> lk(Lock);
+    return Room;
+}
+
+StartInfo Session::startInfo() const
+{
+    std::lock_guard<std::mutex> lk(Lock);
+    return Start;
+}
 
 int Session::players() const
 {
@@ -665,7 +694,7 @@ void Session::handle(const NetplayLink::Event& ev)
             if (colon != std::string::npos)
             {
                 Address = QString::fromStdString(where.substr(0, colon));
-                Port = (u16)std::stoi(where.substr(colon + 1));
+                Port = (u16)strtoul(where.c_str() + colon + 1, nullptr, 10);
             }
 
             Writer w(Msg_Hello);
@@ -1176,7 +1205,9 @@ bool Session::readSaveChunk(Reader& r, Player& p)
     return true;
 }
 
-// a player's DS settings, followed by their save in chunks
+// a player's DS settings, followed by their save in chunks: as much of it as
+// is here already (the rest of a save that is still arriving is passed on
+// chunk by chunk, continuing where this stops)
 void Session::sendConsoleAndSave(int toPeer, int slot)
 {
     const Player& p = Slots[slot];
@@ -1186,9 +1217,10 @@ void Session::sendConsoleAndSave(int toPeer, int slot)
     writeConsole(w, p.Console);
     sendTo(toPeer, kChanSession, w);
 
-    for (u32 off = 0; off < p.Console.SaveSize; off += kSaveChunk)
+    const u32 have = std::min(p.SaveReceived, p.Console.SaveSize);
+    for (u32 off = 0; off < have; off += kSaveChunk)
     {
-        u16 len = (u16)std::min<u32>(kSaveChunk, p.Console.SaveSize - off);
+        u16 len = (u16)std::min<u32>(kSaveChunk, have - off);
         Writer c(Msg_SaveChunk);
         c.U8((u8)slot).U32(off).U16(len).Bytes(p.Save.data() + off, len);
         sendTo(toPeer, kChanSession, c);

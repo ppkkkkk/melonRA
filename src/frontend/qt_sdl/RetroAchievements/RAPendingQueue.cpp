@@ -187,6 +187,8 @@ bool PendingQueue::isDefinitive(const HttpResponse& response)
     // else (including "already unlocked") means the server has dealt with it
     if (response.cancelled || response.status == 0) return false;
     if (response.status >= 500 || response.status == 429 || response.status == 408) return false;
+    // a login that expired in the meantime: the unlock is kept for the next login
+    if (response.status == 401 || response.status == 419) return false;
     return true;
 }
 

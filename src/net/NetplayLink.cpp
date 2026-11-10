@@ -137,8 +137,14 @@ void NetplayLink::Close(u32 reason)
         if (p) enet_peer_disconnect((ENetPeer*)p, reason);
 
     // give the goodbyes a moment to go out
+    auto waiting = [this]
+    {
+        for (void* p : Peers)
+            if (p && ((ENetPeer*)p)->state != ENET_PEER_STATE_DISCONNECTED) return true;
+        return false;
+    };
     ENetEvent e;
-    for (int i = 0; i < 20 && enet_host_service(host, &e, 10) >= 0; i++)
+    for (int i = 0; i < 20 && waiting() && enet_host_service(host, &e, 10) >= 0; i++)
     {
         if (e.type == ENET_EVENT_TYPE_RECEIVE) enet_packet_destroy(e.packet);
     }

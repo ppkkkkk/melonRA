@@ -124,15 +124,15 @@ public:
     bool removePlayer(int slot);
 
     // where the session runs: the host's port, or the address a client joined
-    u16 port() const { return Port; }
-    QString address() const { return Address; }
+    u16 port() const;
+    QString address() const;
 
     State state() const { return CurState; }
     bool isHost() const { return IsHost; }
     int mySlot() const { return MySlot; }
     int players() const;
-    const RoomInfo& room() const { return Room; }
-    const StartInfo& startInfo() const { return Start; }
+    RoomInfo room() const;
+    StartInfo startInfo() const;
     std::vector<PlayerView> roster() const;
 
     // once started: the consoles in order (console N belongs to the player
@@ -217,6 +217,7 @@ private:
     void beginLoading();
     void checkAllLoaded();
     bool saveComplete(const Player& p) const;
+    bool canStartLocked() const;
     int slotOfPeer(int peer) const;
     int consoleOfSlot(int slot) const;
     int freeSlot() const;
@@ -234,9 +235,10 @@ private:
     mutable std::mutex Lock;
     std::condition_variable InputArrived;
 
-    State CurState = State::Idle;
-    bool IsHost = false;
-    int MySlot = 0;
+    // read without the lock by the getters above
+    std::atomic<State> CurState {State::Idle};
+    std::atomic<bool> IsHost {false};
+    std::atomic<int> MySlot {0};
     RoomInfo Room;
     StartInfo Start;
     std::string MyName;
