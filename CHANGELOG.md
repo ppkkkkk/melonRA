@@ -6,7 +6,7 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
 - **MINOR** goes up for feature releases.
 - **PATCH** goes up for small updates and bug fixes.
 
-## Unreleased
+## 0.5.1
 
 - **Fixed:** on Linux, accepting a Discord invite while melonRA was closed could fail with "Unknown
   protocol" (seen on KDE). melonRA now sets itself as the handler for its Discord links on every
