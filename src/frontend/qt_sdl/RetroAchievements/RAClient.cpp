@@ -475,7 +475,8 @@ std::string Manager::buildUserAgent() const
 void Manager::applyClientSettings()
 {
     Config::Table cfg = raConfig();
-    rc_client_set_hardcore_enabled(rcClient, cfg.GetBool("Hardcore") ? 1 : 0);
+    // offline play stays Casual; restoreHardcore() applies it once back online
+    rc_client_set_hardcore_enabled(rcClient, cfg.GetBool("Hardcore") && !offline ? 1 : 0);
     rc_client_set_encore_mode_enabled(rcClient, cfg.GetBool("Encore") ? 1 : 0);
     rc_client_set_unpromoted_enabled(rcClient, cfg.GetBool("Unpromoted") ? 1 : 0);
     rc_client_set_spectator_mode_enabled(rcClient, cfg.GetBool("Spectator") ? 1 : 0);
@@ -855,7 +856,8 @@ void Manager::setEnabled(bool enabled)
 
 bool Manager::isHardcorePreferred() const
 {
-    return rc_client_get_hardcore_enabled(rcClient) != 0;
+    // the setting, which can differ from what's in effect while offline
+    return raConfig().GetBool("Hardcore");
 }
 
 void Manager::setHardcorePreferred(bool enabled)
@@ -863,6 +865,15 @@ void Manager::setHardcorePreferred(bool enabled)
     Config::Table cfg = raConfig();
     cfg.SetBool("Hardcore", enabled);
     Config::Save();
+
+    // Offline play is always Casual: Hardcore waits until the server answers.
+    if (enabled && offline)
+    {
+        osd(kColorWarn, "RetroAchievements: Hardcore mode turns on once you're back online");
+        reloadDisplayOptions();
+        emit stateChanged();
+        return;
+    }
 
     // Enabling hardcore with a game loaded makes rc_client raise
     // RC_CLIENT_EVENT_RESET, which resets the emulator (required: switching
@@ -1014,19 +1025,43 @@ void Manager::setOffline(bool on)
     {
         if (on)
         {
-            osd(kColorWarn, "RetroAchievements: offline, using saved achievement data. "
-                            "Unlocks will be submitted when you're back online.");
+            // achievements earned offline can only count as Casual
+            const bool wasHardcore = rc_client_get_hardcore_enabled(rcClient) != 0;
+            if (wasHardcore) rc_client_set_hardcore_enabled(rcClient, 0);
+            osd(kColorWarn, wasHardcore
+                ? "RetroAchievements: offline, using saved achievement data. Hardcore is off until "
+                  "you're back online; unlocks count as Casual and are submitted later."
+                : "RetroAchievements: offline, using saved achievement data. "
+                  "Unlocks will be submitted when you're back online.");
             ovl->addPopup(Overlay::PopupKind::Info, "", "Playing offline",
-                          "Achievements work as usual.",
+                          wasHardcore ? "Casual mode until you're back online." : "Achievements work as usual.",
                           "Unlocks are saved and sent once you're back online.", 6000);
+            if (wasHardcore) reloadDisplayOptions();
         }
         else
         {
             osd(kColorInfo, "RetroAchievements: back online");
+            restoreHardcore();
             submitSavedQueue();
         }
         emit stateChanged();
     }, Qt::QueuedConnection);
+}
+
+void Manager::restoreHardcore()
+{
+    if (offline || !raConfig().GetBool("Hardcore") || rc_client_get_hardcore_enabled(rcClient)) return;
+
+    // switching to Hardcore mid-game would reset it, so a game played offline
+    // stays Casual until it's started again
+    if (rc_client_is_game_loaded(rcClient))
+    {
+        osd(kColorInfo, "RetroAchievements: Hardcore mode turns back on when you next start a game");
+        return;
+    }
+    rc_client_set_hardcore_enabled(rcClient, 1);
+    reloadDisplayOptions();
+    emit stateChanged();
 }
 
 void Manager::submitSavedQueue()
@@ -1185,6 +1220,7 @@ void Manager::onROMStarted()
     if (!isLoggedIn() && !loginPending) return; // will load after login
 
     rc_client_unload_game(rcClient);
+    restoreHardcore();
     rc_client_begin_load_game(rcClient, hash.c_str(), ClientCallbacks::gameLoaded, nullptr);
     emit stateChanged();
 }

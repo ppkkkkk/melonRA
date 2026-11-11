@@ -79,10 +79,17 @@ persistent queue on top, in `retroachievements/pending_submissions.json`:
 ## Offline sessions
 
 Games played online once can start their achievements without a connection
-(Settings → "Play offline with saved achievement data", on by default), in
-hardcore and casual alike. Hardcore restrictions apply offline as online, and
-each unlock is queued with its hardcore flag, so it's submitted in the mode it
-was earned in.
+(Settings → "Play offline with saved achievement data", on by default).
+Offline play is always Casual: as soon as an answer comes from saved data,
+Hardcore is turned off, and unlocks earned from then on are queued and
+submitted as Casual. Hardcore can't be turned on while offline. Once the
+server answers again, Hardcore comes back if it's set in the settings: right
+away when no game is running, otherwise when the next game starts (switching a
+running game to Hardcore would reset it).
+
+A connection that drops during an online Hardcore session doesn't change the
+mode: unlocks earned before the drop are queued with the Hardcore flag they
+were earned with and retried, as rcheevos does.
 Every request goes through `Manager::send`, which hands it to
 `OfflineCache` in `retroachievements/offline/`:
 
@@ -129,7 +136,7 @@ applying.
 | A. Achievement list accessible in-emulator | RetroAchievements → Achievements… |
 | A. Triggers, measured progress, challenge indicators | Yes |
 | A. Rich Presence and leaderboards | Yes |
-| A. Offline queueing | Unlocks and leaderboard entries are saved to disk before sending. If the app closes before they're delivered, they're resubmitted (re-signed) at the next login or reconnect; see [Offline queue](#offline-queue). Sessions can also start offline from saved data; see [Offline sessions](#offline-sessions). |
+| A. Offline queueing | Unlocks and leaderboard entries are saved to disk before sending. If the app closes before they're delivered, they're resubmitted (re-signed) at the next login or reconnect; see [Offline queue](#offline-queue). Sessions can also start offline from saved data, always in Casual; see [Offline sessions](#offline-sessions). |
 | A. Hit counts in savestates | Yes |
 | A. Toolkit (RAIntegration) support | Windows x86/x64; includes downloader/updater |
 | A. Standard save file formats | Unchanged melonDS `.sav` |

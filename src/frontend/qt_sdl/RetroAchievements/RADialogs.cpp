@@ -276,8 +276,8 @@ QWidget* SettingsDialog::createGeneralTab()
     cbSpectator = new QCheckBox("Spectator mode (don't submit unlocks or leaderboard entries)");
     cbOffline = new QCheckBox("Play offline with saved achievement data when the server can't be reached");
     cbOffline->setToolTip("Games you have played online before keep their achievements without a connection,\n"
-                          "in Hardcore and Casual mode alike (Hardcore rules still apply).\n"
-                          "Unlocks are saved and submitted in the same mode once you're back online.");
+                          "in Casual mode: Hardcore turns off while offline.\n"
+                          "Unlocks are saved and submitted as Casual once you're back online.");
     general->addWidget(cbEnabled);
     general->addWidget(cbHardcore);
     general->addWidget(cbEncore);

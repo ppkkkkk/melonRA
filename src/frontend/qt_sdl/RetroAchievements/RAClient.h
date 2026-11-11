@@ -235,6 +235,8 @@ private:
     void send(const std::string& url, const std::string& post, const std::string& contentType,
               std::function<void(const HttpResponse&)> callback);
     void setOffline(bool offline);
+    // turns Hardcore back on after an offline stretch, when it needs no reset
+    void restoreHardcore();
     std::string buildUserAgent() const;
     void osd(unsigned int color, const QString& text);
 

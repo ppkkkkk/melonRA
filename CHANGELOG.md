@@ -6,6 +6,12 @@ melonRA versions are `MAJOR.MINOR.PATCH`:
 - **MINOR** goes up for feature releases.
 - **PATCH** goes up for small updates and bug fixes.
 
+## Unreleased
+
+- **Changed:** playing offline is now always Casual. When melonRA falls back to saved achievement
+  data, Hardcore turns off and unlocks count as Casual; it turns back on once you're online again
+  (when the next game starts, if one is running). The docs no longer say Hardcore works offline.
+
 ## 0.5.1
 
 - **Fixed:** on Linux, accepting a Discord invite while melonRA was closed could fail with "Unknown
